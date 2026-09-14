@@ -1,6 +1,6 @@
 {
   "name": "menpai",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Translate Taiwan (zh-TW) postal addresses into the Chunghwa Post / UPU English format. Zero dependencies, offline, typed, with per-segment confidence.",
   "keywords": [
     "taiwan",
