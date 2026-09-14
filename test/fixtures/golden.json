@@ -1,0 +1,722 @@
+[
+  {
+    "input": "台北市大安區忠孝東路四段1號3樓之2",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "README example"
+  },
+  {
+    "input": "台北市大安區忠孝東路四段1號3樓之2",
+    "expected": null,
+    "romanization": "tongyong",
+    "note": "README example (Tongyong)"
+  },
+  {
+    "input": "106070台北市大安區忠孝東路四段1號3樓之2",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "README example with 3+3 postal code"
+  },
+  {
+    "input": "臺北市大安區忠孝東路四段216巷27弄1-1號3樓之2 5室",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "lane, alley, number suffix, floor suffix, room"
+  },
+  {
+    "input": "臺北市大安區忠孝東路四段216巷1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "lane only"
+  },
+  {
+    "input": "臺北市大安區忠孝東路四段216巷27弄1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "lane and alley"
+  },
+  {
+    "input": "臺北市大安區忠孝東路四段1之1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "number suffix written with 之"
+  },
+  {
+    "input": "臺北市大安區忠孝東路四段1號5樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "floor without suffix"
+  },
+  {
+    "input": "臺北市大安區忠孝東路四段1號12F",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "floor written as 12F"
+  },
+  {
+    "input": "臺北市大同區重慶北路二段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "重 read chong, not zhong"
+  },
+  {
+    "input": "臺北市中正區重慶南路一段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "重 read chong, not zhong"
+  },
+  {
+    "input": "臺北市中正區廈門街1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "廈 read xia, not sha"
+  },
+  {
+    "input": "臺北市中正區濟南路一段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "濟南 is a place name (Jinan), 南 is not a direction"
+  },
+  {
+    "input": "臺北市中正區羅斯福路一段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "conventional spelling Roosevelt"
+  },
+  {
+    "input": "臺北市中正區市民大道一段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "conventional spelling Civic Blvd."
+  },
+  {
+    "input": "臺北市信義區基隆路一段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "conventional spelling Keelung Rd."
+  },
+  {
+    "input": "臺北市中正區金門街1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "金門 as a road: Jinmen, not Kinmen"
+  },
+  {
+    "input": "臺北市中正區齊東街1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "齊東 is a name, 東 is not a direction"
+  },
+  {
+    "input": "臺北市中山區劍南路1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "劍南 is a name, 南 is not a direction"
+  },
+  {
+    "input": "臺北市大同區安西街1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "two-character name, 西 is not a direction"
+  },
+  {
+    "input": "臺北市松山區民生東路三段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "direction inside a 4-character name"
+  },
+  {
+    "input": "高雄市三民區民族一路1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "ordinal road name"
+  },
+  {
+    "input": "高雄市新興區中正三路1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "ordinal road name"
+  },
+  {
+    "input": "嘉義縣民雄鄉大學路一段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "sectioned entry with its own English (University Road)"
+  },
+  {
+    "input": "臺中市西屯區臺灣大道三段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺 inside a road name"
+  },
+  {
+    "input": "新竹縣竹北市文山路亞東段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "named section"
+  },
+  {
+    "input": "臺北市北投區石牌路一段1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "石牌 = Shipai"
+  },
+  {
+    "input": "新北市淡水區中正路1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "conventional district spelling Tamsui"
+  },
+  {
+    "input": "彰化縣鹿港鎮中山路1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "conventional township spelling Lukang"
+  },
+  {
+    "input": "臺北市中正區中山南路10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 中正區 in 臺北市"
+  },
+  {
+    "input": "基隆市中正區中正路10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 中正區 in 基隆市"
+  },
+  {
+    "input": "臺北市大安區和平東路二段10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 大安區 in 臺北市"
+  },
+  {
+    "input": "臺中市大安區中山南路10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 大安區 in 臺中市"
+  },
+  {
+    "input": "新竹市東區光復路一段10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 東區 in 新竹市"
+  },
+  {
+    "input": "臺中市東區東英路10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 東區 in 臺中市"
+  },
+  {
+    "input": "臺南市東區東門路一段10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 東區 in 臺南市"
+  },
+  {
+    "input": "嘉義市東區民族路10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 東區 in 嘉義市"
+  },
+  {
+    "input": "臺中市西區民生路10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 西區 in 臺中市"
+  },
+  {
+    "input": "嘉義市西區民生北路10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 西區 in 嘉義市"
+  },
+  {
+    "input": "臺中市北區三民路三段10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 北區 in 臺中市"
+  },
+  {
+    "input": "臺南市北區公園路10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 北區 in 臺南市"
+  },
+  {
+    "input": "新竹市北區經國路一段10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 北區 in 新竹市"
+  },
+  {
+    "input": "臺北市中山區中山北路二段10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 中山區 in 臺北市"
+  },
+  {
+    "input": "基隆市中山區中山一路10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 中山區 in 基隆市"
+  },
+  {
+    "input": "臺北市信義區信義路五段10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 信義區 in 臺北市"
+  },
+  {
+    "input": "基隆市信義區信二路10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "same-named district: 信義區 in 基隆市"
+  },
+  {
+    "input": "臺南市佳里區安北路163號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺南市 佳里區"
+  },
+  {
+    "input": "高雄市小港區桂明街261號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "高雄市 小港區"
+  },
+  {
+    "input": "苗栗縣竹南鎮公園六街298號5樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "苗栗縣 竹南鎮"
+  },
+  {
+    "input": "臺北市大安區文昌街203號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺北市 大安區"
+  },
+  {
+    "input": "屏東縣林邊鄉美華路20號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "屏東縣 林邊鄉"
+  },
+  {
+    "input": "嘉義市西區台斗街268號10樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "嘉義市 西區"
+  },
+  {
+    "input": "桃園市桃園區大林路215號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "桃園市 桃園區"
+  },
+  {
+    "input": "屏東縣牡丹鄉東源路11號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "屏東縣 牡丹鄉"
+  },
+  {
+    "input": "桃園市龜山區國園一街115號10樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "桃園市 龜山區"
+  },
+  {
+    "input": "臺中市大肚區福利路168號6樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺中市 大肚區"
+  },
+  {
+    "input": "臺中市東勢區新寧街181號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺中市 東勢區"
+  },
+  {
+    "input": "高雄市大寮區琉園二街120號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "高雄市 大寮區"
+  },
+  {
+    "input": "苗栗縣公館鄉大東路178號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "苗栗縣 公館鄉"
+  },
+  {
+    "input": "雲林縣東勢鄉同安路136號10樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "雲林縣 東勢鄉"
+  },
+  {
+    "input": "新竹縣北埔鄉大林街256號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "新竹縣 北埔鄉"
+  },
+  {
+    "input": "臺南市白河區裕農路75號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺南市 白河區"
+  },
+  {
+    "input": "彰化縣竹塘鄉東厝路205號3樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "彰化縣 竹塘鄉"
+  },
+  {
+    "input": "臺南市白河區一心街85號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺南市 白河區"
+  },
+  {
+    "input": "屏東縣九如鄉玉泉街111號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "屏東縣 九如鄉"
+  },
+  {
+    "input": "臺中市大里區東明路18號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺中市 大里區"
+  },
+  {
+    "input": "新竹縣竹北市嘉豐九路87號6樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "新竹縣 竹北市"
+  },
+  {
+    "input": "花蓮縣壽豐鄉壽富街293號3樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "花蓮縣 壽豐鄉"
+  },
+  {
+    "input": "嘉義市東區忠義街236號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "嘉義市 東區"
+  },
+  {
+    "input": "宜蘭縣五結鄉復興五路152號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "宜蘭縣 五結鄉"
+  },
+  {
+    "input": "彰化縣溪州鄉信義路267號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "彰化縣 溪州鄉"
+  },
+  {
+    "input": "彰化縣芬園鄉嘉北街270號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "彰化縣 芬園鄉"
+  },
+  {
+    "input": "新竹縣新豐鄉坪頂三街103號2樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "新竹縣 新豐鄉"
+  },
+  {
+    "input": "高雄市旗津區瑞竹街71號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "高雄市 旗津區"
+  },
+  {
+    "input": "新北市林口區新生街107號8樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "新北市 林口區"
+  },
+  {
+    "input": "桃園市蘆竹區南順七街231號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "桃園市 蘆竹區"
+  },
+  {
+    "input": "新北市萬里區瑪鋉下街143號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "新北市 萬里區"
+  },
+  {
+    "input": "花蓮縣壽豐鄉民生街30號1樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "花蓮縣 壽豐鄉"
+  },
+  {
+    "input": "基隆市安樂區武崙街245號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "基隆市 安樂區"
+  },
+  {
+    "input": "新北市淡水區新民街33號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "新北市 淡水區"
+  },
+  {
+    "input": "基隆市仁愛區仁五路148號12樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "基隆市 仁愛區"
+  },
+  {
+    "input": "苗栗縣頭份市永安街141號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "苗栗縣 頭份市"
+  },
+  {
+    "input": "金門縣金寧鄉湖峰七街180號4樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "金門縣 金寧鄉"
+  },
+  {
+    "input": "臺東縣關山鎮自強路40號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺東縣 關山鎮"
+  },
+  {
+    "input": "嘉義縣大埔鄉自由一街233號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "嘉義縣 大埔鄉"
+  },
+  {
+    "input": "宜蘭縣員山鄉賢好路165號9樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "宜蘭縣 員山鄉"
+  },
+  {
+    "input": "臺北市萬華區雙和街4號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺北市 萬華區"
+  },
+  {
+    "input": "臺北市內湖區金莊路32號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺北市 內湖區"
+  },
+  {
+    "input": "宜蘭縣頭城鎮沙成路247號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "宜蘭縣 頭城鎮"
+  },
+  {
+    "input": "基隆市中山區中平街96號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "基隆市 中山區"
+  },
+  {
+    "input": "花蓮縣瑞穗鄉興鶴二街280號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "花蓮縣 瑞穗鄉"
+  },
+  {
+    "input": "南投縣中寮鄉中集路66號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "南投縣 中寮鄉"
+  },
+  {
+    "input": "雲林縣虎尾鎮虎興西七街70號1樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "雲林縣 虎尾鎮"
+  },
+  {
+    "input": "臺東縣太麻里鄉曙光街30號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺東縣 太麻里鄉"
+  },
+  {
+    "input": "臺東縣大武鄉中溪路63號9樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "臺東縣 大武鄉"
+  },
+  {
+    "input": "嘉義縣大埔鄉大同一路85號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "嘉義縣 大埔鄉"
+  },
+  {
+    "input": "嘉義市東區車店街47號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "嘉義市 東區"
+  },
+  {
+    "input": "澎湖縣馬公市文林街138號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "澎湖縣 馬公市"
+  },
+  {
+    "input": "雲林縣大埤鄉北門街287號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "雲林縣 大埤鄉"
+  },
+  {
+    "input": "新竹市東區研新四路295號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "新竹市 東區"
+  },
+  {
+    "input": "南投縣埔里鎮民治三街166號2樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "南投縣 埔里鎮"
+  },
+  {
+    "input": "新竹市北區仁化街146號4樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "新竹市 北區"
+  },
+  {
+    "input": "南投縣草屯鎮正言街218號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "南投縣 草屯鎮"
+  },
+  {
+    "input": "嘉義縣布袋鎮信義街255號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "嘉義縣 布袋鎮"
+  },
+  {
+    "input": "新竹市香山區海埔五街109號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "新竹市 香山區"
+  },
+  {
+    "input": "澎湖縣馬公市信義路98號5樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "澎湖縣 馬公市"
+  },
+  {
+    "input": "金門縣金沙鎮三民路151號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "金門縣 金沙鎮"
+  },
+  {
+    "input": "金門縣金寧鄉湖峰七街192號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "金門縣 金寧鄉"
+  },
+  {
+    "input": "澎湖縣馬公市文山路226號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "澎湖縣 馬公市"
+  },
+  {
+    "input": "新北市板橋區文化路一段188號",
+    "expected": null,
+    "romanization": "tongyong",
+    "note": "Tongyong: 板橋 → Banciao, 文化 → Wunhua"
+  },
+  {
+    "input": "高雄市三民區民族一路100號",
+    "expected": null,
+    "romanization": "tongyong",
+    "note": "Tongyong: 三民 unchanged"
+  },
+  {
+    "input": "嘉義縣民雄鄉中正路1號",
+    "expected": null,
+    "romanization": "tongyong",
+    "note": "Tongyong: 民雄 → Minsyong"
+  },
+  {
+    "input": "新竹市東區光復路一段7號",
+    "expected": null,
+    "romanization": "tongyong",
+    "note": "Tongyong: conventional East Dist."
+  },
+  {
+    "input": "臺中市西屯區臺灣大道三段99號",
+    "expected": null,
+    "romanization": "tongyong",
+    "note": "Tongyong: 西屯 → Situn"
+  },
+  {
+    "input": "連江縣南竿鄉介壽村1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "連江縣: Lienchiang; village-only address (the official road list carries villages for Matsu)"
+  },
+  {
+    "input": "連江縣北竿鄉塘岐村10號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "連江縣: village-only address"
+  },
+  {
+    "input": "連江縣東引鄉樂華村5號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "連江縣: village-only address"
+  },
+  {
+    "input": "嘉義縣民雄鄉豊收村3鄰好收5號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "village + neighborhood + place name; official web tool omits 村/鄰, expected must come from the 村里 file"
+  },
+  {
+    "input": "南投縣魚池鄉大雁村大雁巷5號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "village + named lane; official web tool omits 村"
+  },
+  {
+    "input": "宜蘭縣礁溪鄉德陽村德陽路1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "village + road; official web tool omits 村"
+  }
+]
