@@ -1,0 +1,20 @@
+taiwan-address-en
+Copyright (c) 2026 Sean Chou
+Licensed under the MIT License (see LICENSE).
+
+This package embeds data derived from files published by Chunghwa Post Co., Ltd.
+(中華郵政股份有限公司), Taiwan, on its download page
+https://www.post.gov.tw/post/internet/Download/all_list.jsp?ID=2201 :
+
+  - 中英文街路名稱對照檔 (Chinese/English road name list), edition 113/01, file dated 2024-04-01
+  - 村里文字巷中英對照檔 (Chinese/English village and named-lane list), edition 113/01
+  - 縣市鄉鎮中英對照檔 (Chinese/English city and district list with 3-digit postal codes), edition 109/06
+
+The vendored copies live in data/source/ (see data/source/SOURCE.md for URLs and
+checksums). Chunghwa Post is the authoritative source of the English forms; this
+package only reorganizes them and adds fallback rules for names that are not
+listed. Translations of unlisted names are produced by this package and are
+marked as such in its output.
+
+The project donma/TaiwanAddressCityAreaRoadChineseEnglishJSON (MIT) was
+consulted while designing the data layout; none of its data is included.

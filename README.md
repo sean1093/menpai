@@ -1,0 +1,167 @@
+# taiwan-address-en
+
+Translate Taiwan addresses (Traditional Chinese) into the English format used by Chunghwa Post and the UPU.
+
+```ts
+import { translate } from "taiwan-address-en";
+
+translate("台北市大安區忠孝東路四段1號3樓之2").english;
+// → "3 F.-2, No. 1, Sec. 4, Zhongxiao E. Rd., Da'an Dist., Taipei City 106, Taiwan (R.O.C.)"
+
+translate("106070 臺北市大安區忠孝東路四段216巷27弄1-1號3樓之2, 5室").english;
+// → "Rm. 5, 3 F.-2, No. 1-1, Aly. 27, Ln. 216, Sec. 4, Zhongxiao E. Rd., Da'an Dist., Taipei City 106070, Taiwan (R.O.C.)"
+
+translate("高雄市三民區民族一路100號", { romanization: "tongyong" }).english;
+// → "No. 100, Minzu 1st Rd., Sanmin Dist., Kaohsiung City 807, Taiwan (R.O.C.)"
+```
+
+**zero dependencies · 138 kB gzipped (ESM bundle, all data included) · offline · ESM + CJS · TypeScript**
+
+Every result says how sure it is:
+
+```ts
+const r = translate("台北市信義區不存在的路99號");
+r.english;     // "No. 99, Bucunzaide Rd., Xinyi Dist., Taipei City 110, Taiwan (R.O.C.)"
+r.confidence;  // "inferred"  — the road is not in the official list; its pinyin is a guess
+r.unresolved;  // ["不存在的路"]
+r.segments;    // [{ key: "number", value: "No. 99", confidence: "exact" },
+               //  { key: "road", value: "Bucunzaide Rd.", confidence: "inferred" }, ...]
+```
+
+A wrong address gets a parcel lost. This library would rather tell you "I am not sure" than pretend.
+
+## Install
+
+```sh
+npm install taiwan-address-en
+```
+
+Node ≥ 18, browsers, and edge runtimes. Pure functions, no I/O, no side effects at import time.
+
+## API
+
+Three functions. Nothing else is exported besides their types.
+
+### `translate(input, options?) → FormatResult`
+
+`parse` followed by `format`. If the input cannot be parsed, `english` is `""`, `confidence` is `"unknown"`, and `unresolved` holds the whole input. If part of the input could not be interpreted (a building name, a note), it is appended to `unresolved` and `confidence` drops to `"unknown"` — a confident answer is never returned for text that was ignored.
+
+### `parse(input) → ParseResult`
+
+Chinese address → structured parts.
+
+```ts
+const p = parse("桃園縣中壢市中央西路二段30號");
+// {
+//   ok: true,
+//   parts: { city: "桃園市", area: "中壢區", road: "中央西路", section: "2", number: "30" },
+//   unparsed: "",
+//   warnings: [
+//     { code: "city-alias", message: '"桃園縣" was read as "桃園市".' },
+//     { code: "area-alias", message: '"中壢市" was read as "中壢區".' }
+//   ]
+// }
+```
+
+Accepted input variations: `臺` / `台`, full-width digits, Chinese numerals (`四段`, `十二樓`, `二百一十六巷`), `3F` / `3F-2` for `3樓之2`, `1-1號` / `1之1號` / `1號之1`, 3 / 3+2 / 3+3 postal codes with or without a hyphen, whitespace and commas anywhere, pre-2010/2014 county and township names (`臺北縣板橋市` → `新北市板橋區`), a missing city when the district name is unique in Taiwan, and a district that exists in several cities when the postal code settles it.
+
+`ok: false` is returned only when no city can be determined:
+
+| `error.code` | Meaning |
+| --- | --- |
+| `empty-input` | Nothing to parse. |
+| `city-not-found` | No city / county at the start, and no unique district either. |
+| `area-ambiguous` | e.g. `大安區…` alone — exists in 臺北市 and 臺中市; add the city or a postal code. |
+
+`warnings[].code`: `city-alias`, `area-alias`, `city-inferred-from-area`, `postal-code-mismatch` (the code in the input does not belong to that district; it is kept, not corrected), `unparsed-remainder`.
+
+### `format(parts, options?) → FormatResult`
+
+Structured parts → English. Use it directly when the address already lives in separate fields.
+
+```ts
+format({ city: "新北市", area: "板橋區", road: "文化路", section: "1", number: "188", floor: "12" }).english;
+// → "12 F., No. 188, Sec. 1, Wenhua Rd., Banqiao Dist., New Taipei City 220, Taiwan (R.O.C.)"
+```
+
+### Types
+
+```ts
+interface AddressParts {
+  postalCode?: string;   // "106" | "10607" | "106070"
+  city?: string;         // 臺北市
+  area?: string;         // 大安區 / 民雄鄉 / 竹北市
+  village?: string;      // 豊收村 / 龍門里
+  neighborhood?: string; // 鄰 number
+  road?: string;         // 忠孝東路 (路 / 街 / 大道, or a place name)
+  section?: string;      // 段 number (or a named section)
+  lane?: string;         // 巷 number (or a named lane)
+  alley?: string;        // 弄
+  subAlley?: string;     // 衖
+  number?: string;       // 號
+  numberSuffix?: string; // 附號: the 1 in 1之1號
+  floor?: string;        // 樓
+  floorSuffix?: string;  // the 2 in 3樓之2
+  room?: string;         // 室
+}
+
+interface FormatOptions {
+  romanization?: "hanyu" | "tongyong" | "wade-giles"; // default "hanyu"
+  postalCode?: 3 | 5 | 6;  // digits to emit; default: as many as are known
+  country?: boolean;       // append ", Taiwan (R.O.C.)"; default true
+}
+
+type Confidence = "exact" | "inferred" | "unknown";
+
+interface FormatResult {
+  english: string;
+  confidence: Confidence;  // the lowest confidence of all segments
+  segments: Array<{ key: keyof AddressParts; value: string; confidence: Confidence }>;
+  unresolved: string[];    // Chinese fragments rendered by a fallback (or left as-is)
+}
+```
+
+## Confidence
+
+| Level | Meaning |
+| --- | --- |
+| `exact` | The name is in the official Chunghwa Post list, or the segment is a structural token (`No.`, `Sec.`, `F.`) whose form is fixed by the Chunghwa Post writing guideline. |
+| `inferred` | Produced by a fallback: character-by-character pinyin plus suffix rules (`路` → `Rd.`, trailing `東` → `E.`, `一路` → `1st Rd.`). Also every Wade-Giles conversion, since no official reference exists for it. The Chinese fragment is listed in `unresolved`. |
+| `unknown` | Could not be translated (a character with no reading, a postal code that contradicts the district, text that was not understood). The value is passed through so a human can see it. |
+
+The overall `confidence` is the minimum over segments.
+
+## Output format
+
+Follows the order and abbreviations of the Chunghwa Post writing guideline, small to large:
+
+`Rm.` 室 → `F.` 樓 (`3 F.-2` for 3樓之2) → `No.` 號 (`No. 1-1` for 1之1號) → `Sub-Alley` 衖 → `Aly.` 弄 → `Ln.` 巷 → `Sec.` 段 → road (`Rd.` 路, `St.` 街, `Blvd.` 大道; `E.` / `W.` / `S.` / `N.`; `1st` / `2nd` …) → `Neighborhood` 鄰 → `Vil.` 村/里 → `Dist.` 區 / `Township` 鄉·鎮 / `City` 縣轄市 → city or county + postal code → `Taiwan (R.O.C.)`.
+
+Conventional spellings are used where Chunghwa Post uses them: `Taipei`, `New Taipei`, `Kaohsiung`, `Keelung`, `Hsinchu`, `Taichung`, `Chiayi`, `Pingtung`, `Kinmen`, `Hualien`, `Taitung`, `Lienchiang`, `Tamsui Dist.`, `Lukang Township`, `East Dist.`, `Roosevelt Rd.`, `Civic Blvd.`, `Keelung Rd.`. Multi-reading characters follow the official list, not a generic pinyin algorithm: `重慶北路` is `Chongqing N. Rd.`, `廈門街` is `Xiamen St.`.
+
+Romanization applies to names that are not conventional: `hanyu` (default, the official system), `tongyong` (`Jhongsiao`, `Banciao`), `wade-giles` in the simplified Taiwan form without aspiration marks, diaereses or hyphens (`Chunghsiao`, `Hsinyi`).
+
+## Verification
+
+- **Official data replay** — every one of the 30,030 road rows, 8,369 village / named-lane rows and 371 district rows of the vendored Chunghwa Post files is pushed through `format()` and must come back byte-for-byte (`test/data.test.ts`). The fallback rules are pinned to the official spellings.
+- **Property-based** — random combinations of real districts, roads, villages and numbers are written out in random spellings (臺/台, Chinese / full-width numerals, `3F`, `1-1號`, stray spaces and commas), parsed back, and must format identically (`fast-check`, `test/roundtrip.property.test.ts`).
+- **Golden cases against the official web tool** — `test/fixtures/golden.json` holds 120 addresses (every city, multi-reading roads, sections, lanes, alleys, floors, suffixes, same-named districts, Tongyong). Their `expected` values are filled in by hand from the Chunghwa Post translation tool; cases still marked `null` are reported as *todo* and assert nothing. **Status: pending — no golden case has been verified yet.** This README will state the pass count once they are.
+
+## Non-goals
+
+- Address existence validation. `臺北市大安區忠孝東路四段99999號` translates fine; whether the house exists is not this library's business.
+- Postal code lookup or reverse lookup. 3-digit codes come with the district; 3+2 / 3+3 codes are only passed through from the input.
+- English → Chinese.
+- Calling the Chunghwa Post website at runtime. Everything is offline.
+- Configuration files, plugins, custom dictionaries.
+- Addresses outside Taiwan.
+
+## Data
+
+All names come from files published by Chunghwa Post (中華郵政) on its [download page](https://www.post.gov.tw/post/internet/Download/all_list.jsp?ID=2201): the road list (edition 113/01, 2024-04-01), the village and named-lane list (113/01), and the city / district list with postal codes (109/06). The vendored copies, URLs and checksums are in [`data/source/`](data/source/SOURCE.md); the reasoning behind the data layout is in [`docs/data-notes.md`](docs/data-notes.md). `npm run build:data` regenerates `src/data/` and CI fails if the committed output drifts.
+
+[donma/TaiwanAddressCityAreaRoadChineseEnglishJSON](https://github.com/donma/TaiwanAddressCityAreaRoadChineseEnglishJSON) (MIT) was the starting point of this project; its data turned out to be from 2016, so the current official files are used instead. See [`NOTICE`](NOTICE).
+
+## License
+
+MIT © Sean Chou. Data © Chunghwa Post Co., Ltd.; see `NOTICE`.
