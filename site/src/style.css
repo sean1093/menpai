@@ -497,21 +497,6 @@ textarea:focus {
 
 /* ---- Error / note / footer -------------------------------------------- */
 
-.error {
-  background: var(--bad-bg);
-  border-color: #eacaca;
-  color: var(--bad);
-}
-
-.error p {
-  margin: 0;
-  font-weight: 600;
-}
-
-footer p {
-  margin: 0;
-}
-
 .note {
   color: var(--ink-faint);
   font-size: 15px;
@@ -523,6 +508,21 @@ footer {
   padding: 0 4px;
   color: var(--ink-faint);
   font-size: 14px;
+}
+
+footer p {
+  margin: 0;
+}
+
+.error {
+  background: var(--bad-bg);
+  border-color: #eacaca;
+  color: var(--bad);
+}
+
+.error p {
+  margin: 0;
+  font-weight: 600;
 }
 
 @media (min-width: 600px) {
