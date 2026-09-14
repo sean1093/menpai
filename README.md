@@ -30,6 +30,8 @@ r.segments;    // [{ key: "number", value: "No. 99", confidence: "exact" },
 
 A wrong address gets a parcel lost. This library would rather tell you "I am not sure" than pretend.
 
+**Try it in the browser:** https://sean1093.github.io/menpai/ — mobile-first, works offline once loaded, accepts `?q=<address>` as a deep link.
+
 ## Install
 
 ```sh
@@ -146,6 +148,10 @@ Romanization applies to names that are not conventional: `hanyu` (default, the o
 - **Official data replay** — every one of the 30,030 road rows, 8,369 village / named-lane rows and 371 district rows of the vendored Chunghwa Post files is pushed through `format()` and must come back byte-for-byte (`test/data.test.ts`). The fallback rules are pinned to the official spellings.
 - **Property-based** — random combinations of real districts, roads, villages and numbers are written out in random spellings (臺/台, Chinese / full-width numerals, `3F`, `1-1號`, stray spaces and commas), parsed back, and must format identically (`fast-check`, `test/roundtrip.property.test.ts`).
 - **Golden cases against the official web tool** — `test/fixtures/golden.json` holds 120 addresses (every city, multi-reading roads, sections, lanes, alleys, floors, suffixes, same-named districts, Tongyong). Their `expected` values are filled in by hand from the Chunghwa Post translation tool; cases still marked `null` are reported as *todo* and assert nothing. **Status: pending — no golden case has been verified yet.** This README will state the pass count once they are.
+
+## Using it in a checkout, CRM, or label printer
+
+See [`docs/integration.md`](docs/integration.md): where to run it, what to do with each `confidence` level, and a ~40-line zero-dependency HTTP endpoint for non-JavaScript stacks ([`examples/http-server.mjs`](examples/http-server.mjs), [`examples/cloudflare-worker.mjs`](examples/cloudflare-worker.mjs)).
 
 ## Non-goals
 

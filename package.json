@@ -54,7 +54,7 @@
   "scripts": {
     "build": "tsup",
     "build:data": "tsx scripts/build-data.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p site",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test": "vitest run",
@@ -62,7 +62,10 @@
     "size": "node scripts/size.mjs",
     "changeset": "changeset",
     "version": "changeset version",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "dev:site": "vite --config site/vite.config.ts",
+    "build:site": "vite build --config site/vite.config.ts",
+    "preview:site": "vite preview --config site/vite.config.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
@@ -73,6 +76,7 @@
     "tsup": "^8.5.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
+    "vite": "^8.3.0",
     "vitest": "^3.2.4"
   }
 }

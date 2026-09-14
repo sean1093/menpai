@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>門牌 menpai — 中文地址英譯</title>
+    <meta name="description" content="把台灣中文地址轉成中華郵政英文格式。免安裝、離線可用、不上傳任何資料。" />
+    <meta name="theme-color" content="#f4f2ed" />
+    <meta property="og:title" content="門牌 menpai — 中文地址英譯" />
+    <meta property="og:description" content="把台灣中文地址轉成中華郵政英文格式。" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232b2a28'/%3E%3Crect x='14' y='18' width='36' height='28' rx='3' fill='none' stroke='%23f4f2ed' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23f4f2ed'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <h1><span class="hanzi">門牌</span><span class="latin">menpai</span></h1>
+      <p class="tagline">把台灣地址轉成中華郵政英文格式</p>
+    </header>
+
+    <main>
+      <section class="card">
+        <label class="field-label" for="address">中文地址</label>
+        <div class="input-wrap">
+          <textarea
+            id="address"
+            rows="3"
+            placeholder="例如：台北市大安區忠孝東路四段1號3樓之2"
+            autocomplete="street-address"
+            autocapitalize="off"
+            spellcheck="false"
+            enterkeyhint="done"
+          ></textarea>
+          <button id="clear" class="clear" type="button" aria-label="清除" hidden>×</button>
+        </div>
+
+        <div class="examples" role="group" aria-label="範例地址">
+          <span class="examples-label">試試看：</span>
+          <button type="button" class="chip" data-example="台北市大安區忠孝東路四段1號3樓之2">台北市大安區忠孝東路四段1號3樓之2</button>
+          <button type="button" class="chip" data-example="高雄市三民區民族一路100號">高雄市三民區民族一路100號</button>
+          <button type="button" class="chip" data-example="桃園縣中壢市中央西路二段30號12樓">桃園縣中壢市中央西路二段30號12樓</button>
+        </div>
+
+        <fieldset class="segmented" id="romanization">
+          <legend>拼音系統</legend>
+          <label><input type="radio" name="romanization" value="hanyu" checked /><span>漢語拼音</span></label>
+          <label><input type="radio" name="romanization" value="tongyong" /><span>通用拼音</span></label>
+          <label><input type="radio" name="romanization" value="wade-giles" /><span>威妥瑪</span></label>
+        </fieldset>
+
+        <label class="switch">
+          <input type="checkbox" id="country" checked />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span>結尾加上 Taiwan (R.O.C.)</span>
+        </label>
+
+        <button id="go" class="primary" type="button">轉換成英文</button>
+      </section>
+
+      <section id="result" class="card result" hidden aria-live="polite">
+        <p id="status" class="status"></p>
+        <p id="english" class="english"></p>
+        <button id="copy" class="primary" type="button">複製英文地址</button>
+        <ul id="issues" class="issues"></ul>
+        <details class="details">
+          <summary>各段對照</summary>
+          <table class="segments">
+            <tbody id="segments"></tbody>
+          </table>
+        </details>
+      </section>
+
+      <section id="error" class="card error" hidden role="alert">
+        <p id="error-text"></p>
+      </section>
+
+      <p class="note">所有轉換都在你的手機或電腦上完成，地址不會被送到任何伺服器。結果僅供郵寄書寫參考。</p>
+    </main>
+
+    <footer>
+      <p>
+        資料來源：中華郵政 路街 / 村里 / 縣市鄉鎮 中英對照檔（113/01）。
+        <a href="https://github.com/sean1093/menpai">GitHub</a> ·
+        <a href="https://www.npmjs.com/package/menpai">npm</a>
+      </p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

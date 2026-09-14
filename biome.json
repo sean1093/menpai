@@ -8,6 +8,7 @@
       "!test/fixtures",
       "!data",
       "!dist",
+      "!site/dist",
       "!CHANGELOG.md",
       "!.scratch"
     ]
