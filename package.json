@@ -1,0 +1,78 @@
+{
+  "name": "taiwan-address-en",
+  "version": "0.0.0",
+  "description": "Translate Taiwan (zh-TW) postal addresses into the Chunghwa Post / UPU English format. Zero dependencies, offline, typed, with per-segment confidence.",
+  "keywords": [
+    "taiwan",
+    "address",
+    "english",
+    "translate",
+    "romanization",
+    "chunghwa-post",
+    "pinyin",
+    "tongyong",
+    "wade-giles",
+    "zh-tw"
+  ],
+  "license": "MIT",
+  "author": "Sean Chou",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sean1093/taiwan-address-en.git"
+  },
+  "homepage": "https://github.com/sean1093/taiwan-address-en#readme",
+  "bugs": "https://github.com/sean1093/taiwan-address-en/issues",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsup",
+    "build:data": "tsx scripts/build-data.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "size": "node scripts/size.mjs",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
+    "@changesets/cli": "^2.29.7",
+    "@types/node": "^24.5.2",
+    "fast-check": "^4.3.0",
+    "pinyin-pro": "^3.29.4",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
