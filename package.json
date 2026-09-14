@@ -1,5 +1,5 @@
 {
-  "name": "taiwan-address-en",
+  "name": "menpai",
   "version": "0.0.0",
   "description": "Translate Taiwan (zh-TW) postal addresses into the Chunghwa Post / UPU English format. Zero dependencies, offline, typed, with per-segment confidence.",
   "keywords": [
@@ -18,10 +18,10 @@
   "author": "Sean Chou",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sean1093/taiwan-address-en.git"
+    "url": "git+https://github.com/sean1093/menpai.git"
   },
-  "homepage": "https://github.com/sean1093/taiwan-address-en#readme",
-  "bugs": "https://github.com/sean1093/taiwan-address-en/issues",
+  "homepage": "https://github.com/sean1093/menpai#readme",
+  "bugs": "https://github.com/sean1093/menpai/issues",
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.cjs",

@@ -1,9 +1,9 @@
-# taiwan-address-en
+# menpai
 
-Translate Taiwan addresses (Traditional Chinese) into the English format used by Chunghwa Post and the UPU.
+門牌 *ménpái* — the address plate on a Taiwanese house. **menpai** rewrites that address in the English format used by Chunghwa Post and the UPU.
 
 ```ts
-import { translate } from "taiwan-address-en";
+import { translate } from "menpai";
 
 translate("台北市大安區忠孝東路四段1號3樓之2").english;
 // → "3 F.-2, No. 1, Sec. 4, Zhongxiao E. Rd., Da'an Dist., Taipei City 106, Taiwan (R.O.C.)"
@@ -33,7 +33,7 @@ A wrong address gets a parcel lost. This library would rather tell you "I am not
 ## Install
 
 ```sh
-npm install taiwan-address-en
+npm install menpai
 ```
 
 Node ≥ 18, browsers, and edge runtimes. Pure functions, no I/O, no side effects at import time.
