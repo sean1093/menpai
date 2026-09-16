@@ -20,15 +20,27 @@ export type {
 
 /**
  * `parse` followed by `format`. When the input cannot be parsed the result has
- * `confidence: "unknown"`, an empty `english`, and the whole input in `unresolved`.
+ * `confidence: "unknown"`, an empty `english`, the whole input in `unresolved`,
+ * and the reason in `error`. Anything `parse` wanted to warn about is carried
+ * through in `warnings`, so a caller never has to run `parse` separately just
+ * to find out what happened.
  */
 export function translate(input: string, options?: FormatOptions): FormatResult {
   const parsed = parse(input);
-  if (!parsed.ok) return { english: "", confidence: "unknown", segments: [], unresolved: [input] };
+  if (!parsed.ok) {
+    return {
+      english: "",
+      confidence: "unknown",
+      segments: [],
+      unresolved: [input],
+      error: parsed.error,
+    };
+  }
   const result = format(parsed.parts, options);
   if (parsed.unparsed.length > 0) {
     result.unresolved.push(parsed.unparsed);
     result.confidence = "unknown";
   }
+  if (parsed.warnings.length > 0) result.warnings = parsed.warnings;
   return result;
 }
