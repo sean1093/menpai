@@ -30,9 +30,9 @@ export interface AddressParts {
   numberSuffix?: string;
   /** Floor (樓 / F), e.g. `"3"`. Basement levels carry a `B`: `"B1"` prints as `B1 F.`. */
   floor?: string;
-  /** Floor suffix (之): the `2` in `3樓之2`. */
+  /** Floor suffix (之): the `2` in `3樓之2`. May be a letter: `"B"` in `3樓之B`. */
   floorSuffix?: string;
-  /** Room (室), e.g. `"5"`. */
+  /** Room (室), e.g. `"5"`. May be a letter: `"A"`, `"A1"`. */
   room?: string;
 }
 

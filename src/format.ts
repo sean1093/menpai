@@ -38,6 +38,16 @@ function digits(text: string): string {
 }
 
 /**
+ * A unit designator: a number, or a Latin letter optionally carrying up to two
+ * digits, kept upper-case (`a` → `A`). Anything else passes through as written,
+ * so `room: "ab"` stays `ab` — only the shape `parse()` can produce is normalised.
+ */
+function unitValue(text: string): string {
+  const t = normalizeZh(text);
+  return /^[A-Za-z][0-9]{0,2}$/.test(t) ? t.toUpperCase() : digits(t);
+}
+
+/**
  * Floor designator. Basement floors carry a `B` marker (`"B1"`, or `"地下1"` /
  * `"b1"` when the caller hands `format()` raw input) and are emitted as `B1 F.`,
  * matching the spacing of the above-ground `3 F.` form.
@@ -149,9 +159,9 @@ export function format(parts: AddressParts, options: FormatOptions = {}): Format
 
   // ---- Small → large ------------------------------------------------------
   if (parts.room !== undefined)
-    push("room", { en: `Rm. ${digits(parts.room)}`, confidence: "exact" });
+    push("room", { en: `Rm. ${unitValue(parts.room)}`, confidence: "exact" });
   if (parts.floor !== undefined) {
-    const suffix = parts.floorSuffix === undefined ? "" : `-${digits(parts.floorSuffix)}`;
+    const suffix = parts.floorSuffix === undefined ? "" : `-${unitValue(parts.floorSuffix)}`;
     push("floor", { en: `${floorValue(parts.floor)} F.${suffix}`, confidence: "exact" });
   }
   if (parts.number !== undefined) {
