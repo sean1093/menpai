@@ -51,6 +51,9 @@ const PART_LABEL: Record<keyof AddressParts, string> = {
   room: "室",
 };
 
+/** The whole remainder, greedily — it may itself contain a quote. */
+const UNPARSED = /^Could not interpret "([\s\S]+)"\.$/;
+
 const quoted = (message: string): string[] =>
   [...message.matchAll(/"([^"]+)"/g)].map((m) => m[1] ?? "");
 
@@ -144,7 +147,12 @@ function showError(text: string, choices: string[] = []): void {
     button.type = "button";
     button.textContent = city;
     button.addEventListener("click", () => {
-      addressEl.value = city + addressEl.value.trim();
+      // The city goes after any leading postal code, not in front of it:
+      // parse() only reads a code at the very start, so prepending ahead of one
+      // would make the whole address unreadable.
+      const current = addressEl.value.trim();
+      const zip = /^\d{3}(?:-?\d{2,3})?(?![0-9])/.exec(current)?.[0] ?? "";
+      addressEl.value = zip + city + current.slice(zip.length);
       run();
       addressEl.focus();
     });
@@ -192,14 +200,20 @@ function run(): void {
     const { text, level } = describeWarning(w);
     addIssue(text, level);
   }
-  // A fragment that could not be interpreted shows up in `unresolved` *and* as an
-  // unparsed-remainder warning. Saying "we guessed the pinyin" about text that was
-  // not translated at all contradicts the warning right above it, so skip those.
-  const skipped = new Set(
-    warnings.flatMap((w) => (w.code === "unparsed-remainder" ? quoted(w.message) : [])),
+  // `translate` puts the uninterpreted remainder in `unresolved` as well as
+  // raising a warning about it, so without this the page would say "we guessed
+  // the pinyin" directly under "this was not translated at all", about the same
+  // text. Consume one remainder per fragment rather than filtering by value, so
+  // a road that happens to read the same as the remainder keeps its own note.
+  const remainders = warnings.flatMap((w) =>
+    w.code === "unparsed-remainder" ? (UNPARSED.exec(w.message)?.[1] ?? quoted(w.message)) : [],
   );
   for (const fragment of result.unresolved) {
-    if (skipped.has(fragment)) continue;
+    const at = remainders.indexOf(fragment);
+    if (at !== -1) {
+      remainders.splice(at, 1);
+      continue;
+    }
     addIssue(`「${fragment}」不在官方清單，英文是依字音推估的`, "warn");
   }
 

@@ -547,6 +547,12 @@ footer p {
 }
 
 /* Candidate cities for an ambiguous district: one tap instead of retyping. */
+.choices[hidden] {
+  /* `display: flex` below outranks the UA rule for [hidden], which would
+     otherwise leave the gap under every error that has no choices. */
+  display: none;
+}
+
 .choices {
   display: flex;
   flex-wrap: wrap;

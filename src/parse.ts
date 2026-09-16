@@ -153,7 +153,7 @@ function locate(
       ok: false,
       error: {
         code: "area-ambiguous",
-        message: `"${text.slice(0, 3)}" exists in more than one city (${cities.join(", ")}); add the city name or a postal code.`,
+        message: `"${text.slice(0, first?.zh.length ?? 3)}" exists in more than one city (${cities.join(", ")}); add the city name or a postal code.`,
         candidates: cities,
       },
     };

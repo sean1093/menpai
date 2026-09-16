@@ -440,8 +440,9 @@ describe("parse", () => {
   });
 
   it("every candidate it offers actually resolves the ambiguity", () => {
-    // The contract the site's tap-to-choose buttons rely on: prepending any
-    // offered city must parse, and must yield that city.
+    // The contract the site's tap-to-choose buttons rely on. Asserting only
+    // `ok` and `city` is not enough: "臺北市999大安區中山路1號" is `ok` with the
+    // right city while the district, road and number are all gone.
     const byName = new Map<string, Set<number>>();
     for (const [cityIndex, zh] of AREAS) {
       if (zh === "") continue;
@@ -449,23 +450,40 @@ describe("parse", () => {
       byName.get(zh)?.add(cityIndex);
     }
     const ambiguous = [...byName.entries()].filter(([, cities]) => cities.size > 1);
+    // Districts in 3+ cities (東區 is in four) are the cases most worth covering,
+    // so count exactly rather than leaving slack that could silently skip them.
+    const expected = ambiguous.reduce((n, [, cities]) => n + cities.size, 0);
     expect(ambiguous.length).toBeGreaterThan(0);
 
     let checked = 0;
     for (const [zh] of ambiguous) {
-      const input = `${zh}中山路1號`;
-      const result = parse(input);
-      if (result.ok || result.error.code !== "area-ambiguous") continue;
-      const candidates = result.error.candidates ?? [];
-      expect(candidates.length, input).toBeGreaterThan(1);
-      for (const city of candidates) {
-        const fixed = parse(city + input);
-        expect(fixed.ok, city + input).toBe(true);
-        if (fixed.ok) expect(fixed.parts.city, city + input).toBe(city);
-        checked++;
+      // Both shapes the site's button produces: with and without a postal code.
+      for (const [prefix, rest] of [
+        ["", `${zh}中山路1號`],
+        ["999", `${zh}中山路1號`],
+      ] as const) {
+        const result = parse(prefix + rest);
+        expect(result.ok, prefix + rest).toBe(false);
+        if (result.ok) continue;
+        expect(result.error.code, prefix + rest).toBe("area-ambiguous");
+        const candidates = result.error.candidates ?? [];
+        expect(candidates.length, prefix + rest).toBeGreaterThan(1);
+        for (const city of candidates) {
+          // The city is inserted after any postal code, as the site does it.
+          const input = prefix + city + rest;
+          const fixed = parse(input);
+          expect(fixed.ok, input).toBe(true);
+          if (!fixed.ok) continue;
+          expect(fixed.parts.city, input).toBe(city);
+          expect(fixed.parts.area, input).toBe(zh);
+          expect(fixed.parts.road, input).toBe("中山路");
+          expect(fixed.parts.number, input).toBe("1");
+          expect(fixed.unparsed, input).toBe("");
+          if (prefix === "") checked++;
+        }
       }
     }
-    expect(checked).toBeGreaterThan(10);
+    expect(checked).toBe(expected);
   });
 
   it("does not set candidates for other failures", () => {
