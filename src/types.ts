@@ -28,7 +28,7 @@ export interface AddressParts {
   number?: string;
   /** House number suffix (附號): the `1` in `1之1號` / `1-1號`. */
   numberSuffix?: string;
-  /** Floor (樓 / F), e.g. `"3"`. */
+  /** Floor (樓 / F), e.g. `"3"`. Basement levels carry a `B`: `"B1"` prints as `B1 F.`. */
   floor?: string;
   /** Floor suffix (之): the `2` in `3樓之2`. */
   floorSuffix?: string;

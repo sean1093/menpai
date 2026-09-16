@@ -65,7 +65,7 @@ const p = parse("桃園縣中壢市中央西路二段30號");
 // }
 ```
 
-Accepted input variations: `臺` / `台`, full-width digits, Chinese numerals (`四段`, `十二樓`, `二百一十六巷`), `3F` / `3F-2` for `3樓之2`, `1-1號` / `1之1號` / `1號之1`, 3 / 3+2 / 3+3 postal codes with or without a hyphen, whitespace and commas anywhere, pre-2010/2014 county and township names (`臺北縣板橋市` → `新北市板橋區`), a missing city when the district name is unique in Taiwan, and a district that exists in several cities when the postal code settles it.
+Accepted input variations: `臺` / `台`, full-width digits, Chinese numerals (`四段`, `十二樓`, `二百一十六巷`), `3F` / `3F-2` for `3樓之2`, basement floors written `地下2樓` / `地下二樓` / `B2` / `B2F` / `B2樓`, `1-1號` / `1之1號` / `1號之1`, 3 / 3+2 / 3+3 postal codes with or without a hyphen, whitespace and commas anywhere, pre-2010/2014 county and township names (`臺北縣板橋市` → `新北市板橋區`), a missing city when the district name is unique in Taiwan, and a district that exists in several cities when the postal code settles it.
 
 `ok: false` is returned only when no city can be determined:
 
@@ -102,7 +102,7 @@ interface AddressParts {
   subAlley?: string;     // 衖
   number?: string;       // 號
   numberSuffix?: string; // 附號: the 1 in 1之1號
-  floor?: string;        // 樓
+  floor?: string;        // 樓; basement floors are "B1", "B2", … → "B1 F."
   floorSuffix?: string;  // the 2 in 3樓之2
   room?: string;         // 室
 }
@@ -137,7 +137,7 @@ The overall `confidence` is the minimum over segments.
 
 Follows the order and abbreviations of the Chunghwa Post writing guideline, small to large:
 
-`Rm.` 室 → `F.` 樓 (`3 F.-2` for 3樓之2) → `No.` 號 (`No. 1-1` for 1之1號) → `Sub-Alley` 衖 → `Aly.` 弄 → `Ln.` 巷 → `Sec.` 段 → road (`Rd.` 路, `St.` 街, `Blvd.` 大道; `E.` / `W.` / `S.` / `N.`; `1st` / `2nd` …) → `Neighborhood` 鄰 → `Vil.` 村/里 → `Dist.` 區 / `Township` 鄉·鎮 / `City` 縣轄市 → city or county + postal code → `Taiwan (R.O.C.)`.
+`Rm.` 室 → `F.` 樓 (`3 F.-2` for 3樓之2, `B1 F.` for 地下1樓) → `No.` 號 (`No. 1-1` for 1之1號) → `Sub-Alley` 衖 → `Aly.` 弄 → `Ln.` 巷 → `Sec.` 段 → road (`Rd.` 路, `St.` 街, `Blvd.` 大道; `E.` / `W.` / `S.` / `N.`; `1st` / `2nd` …) → `Neighborhood` 鄰 → `Vil.` 村/里 → `Dist.` 區 / `Township` 鄉·鎮 / `City` 縣轄市 → city or county + postal code → `Taiwan (R.O.C.)`.
 
 Conventional spellings are used where Chunghwa Post uses them: `Taipei`, `New Taipei`, `Kaohsiung`, `Keelung`, `Hsinchu`, `Taichung`, `Chiayi`, `Pingtung`, `Kinmen`, `Hualien`, `Taitung`, `Lienchiang`, `Tamsui Dist.`, `Lukang Township`, `East Dist.`, `Roosevelt Rd.`, `Civic Blvd.`, `Keelung Rd.`. Multi-reading characters follow the official list, not a generic pinyin algorithm: `重慶北路` is `Chongqing N. Rd.`, `廈門街` is `Xiamen St.`.
 

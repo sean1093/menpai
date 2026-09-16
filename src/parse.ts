@@ -22,6 +22,18 @@ const ALLEY = new RegExp(`^(${NUM})弄`);
 const SUB_ALLEY = new RegExp(`^(${NUM})衖`);
 const NUMBER = new RegExp(`^(${NUM})(?:之(${NUM})|-(${NUM}))?號(?:之(${NUM}))?`);
 const FLOOR = new RegExp(`^(${NUM})(?:樓|F)(?:之(${NUM})|-(${NUM}))?`, "i");
+/** `地下2樓`, `地下二樓之3`, `B2F`, `B2樓`, `地下2層` — an explicit 樓/F/層 settles it. */
+const BASEMENT_MARKED = new RegExp(`^(?:地下|B)(${NUM})(?:樓|F|層)(?:之(${NUM})|-(${NUM}))?`, "i");
+/**
+ * Bare `B2` / `地下2`, with no 樓/F/層 to confirm it. `B2` is also how buildings
+ * label a block (`B1棟`, `B2號`, `B25室`, `b2c咖啡`), and claiming a basement
+ * there would invent a floor and discard the real one. So the bare form is only
+ * read as a floor when it ends the address, or is followed by a separated room.
+ */
+const BASEMENT_BARE = new RegExp(
+  `^(?:地下|B)(${NUM})(?:之(${NUM})|-(${NUM}))?(?=$|\\s+${NUM}室)`,
+  "i",
+);
 const ROOM = new RegExp(`^(${NUM})室`);
 const VILLAGE = /^([^0-9巷弄號段路街鄰]{1,6}[村里])/;
 const ROAD_FALLBACK = /^([^0-9]{1,12}?(?:大道|路|街|巷|弄))/;
@@ -136,9 +148,9 @@ function locate(
  * Parses a Traditional Chinese address into {@link AddressParts}.
  *
  * Accepts `臺`/`台` variants, full-width digits, Chinese numerals (`四段`, `十二樓`),
- * `3F` for `3樓`, `1-1號` / `1之1號`, 3 / 3+2 / 3+3 postal codes, and whitespace
- * anywhere. Fails only when no city can be determined; anything after the last
- * recognised part is returned in `unparsed`.
+ * `3F` for `3樓`, basement floors (`地下2樓`, `B2F`), `1-1號` / `1之1號`, 3 / 3+2 / 3+3
+ * postal codes, and whitespace anywhere. Fails only when no city can be determined;
+ * anything after the last recognised part is returned in `unparsed`.
  */
 export function parse(input: string): ParseResult {
   let rest = normalizeZh(input);
@@ -239,9 +251,10 @@ export function parse(input: string): ParseResult {
     rest = advance(rest, number[0].length);
   }
 
-  const floor = FLOOR.exec(rest);
+  const basement = BASEMENT_MARKED.exec(rest) ?? BASEMENT_BARE.exec(rest);
+  const floor = basement ?? FLOOR.exec(rest);
   if (floor?.[1]) {
-    parts.floor = digits(floor[1]);
+    parts.floor = (basement ? "B" : "") + digits(floor[1]);
     const suffix = floor[2] ?? floor[3];
     if (suffix) parts.floorSuffix = digits(suffix);
     rest = advance(rest, floor[0].length);

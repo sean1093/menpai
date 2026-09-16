@@ -20,6 +20,15 @@ const base: AddressParts = {
   floorSuffix: "2",
 };
 
+/** Everything above the floor for the basement cases below. */
+const basement: AddressParts = {
+  city: "臺北市",
+  area: "中正區",
+  road: "重慶南路",
+  section: "1",
+  number: "122",
+};
+
 const cases: Case[] = [
   { name: "canonical", input: "臺北市大安區忠孝東路四段1號3樓之2", parts: base },
   { name: "台 variant", input: "台北市大安區忠孝東路四段1號3樓之2", parts: base },
@@ -228,6 +237,104 @@ const cases: Case[] = [
     warnings: ["unparsed-remainder"],
     unparsed: "市政大樓",
   },
+  {
+    name: "地下N樓 basement",
+    input: "臺北市中正區重慶南路一段122號地下2樓",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "地下 with a Chinese numeral",
+    input: "臺北市中正區重慶南路一段122號地下二樓",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "BN basement",
+    input: "臺北市中正區重慶南路一段122號B2",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "BNF basement",
+    input: "臺北市中正區重慶南路一段122號B2F",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "lower-case bN basement",
+    input: "臺北市中正區重慶南路一段122號b2",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "B2樓 basement",
+    input: "臺北市中正區重慶南路一段122號B2樓",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "basement with a floor suffix",
+    input: "臺北市中正區重慶南路一段122號地下2樓之3",
+    parts: { ...basement, floor: "B2", floorSuffix: "3" },
+  },
+  {
+    name: "basement with a hyphen suffix",
+    input: "臺北市中正區重慶南路一段122號B2-3",
+    parts: { ...basement, floor: "B2", floorSuffix: "3" },
+  },
+  {
+    name: "basement then room",
+    input: "臺北市中正區重慶南路一段122號地下2樓 5室",
+    parts: { ...basement, floor: "B2", room: "5" },
+  },
+  {
+    name: "地下N層 basement",
+    input: "臺北市中正區重慶南路一段122號地下一層",
+    parts: { ...basement, floor: "B1" },
+  },
+  {
+    name: "地下N層 keeps the room",
+    input: "臺北市中正區重慶南路一段122號地下二層5室",
+    parts: { ...basement, floor: "B2", room: "5" },
+  },
+  {
+    name: "bare B before a separated room",
+    input: "臺北市中正區重慶南路一段122號B2 5室",
+    parts: { ...basement, floor: "B2", room: "5" },
+  },
+  {
+    name: "full-width Ｂ１ basement",
+    input: "臺北市中正區重慶南路一段122號Ｂ１",
+    parts: { ...basement, floor: "B1" },
+  },
+  {
+    name: "地下道 is not a basement floor",
+    input: "臺北市信義區市府路1號地下道",
+    parts: { city: "臺北市", area: "信義區", road: "市府路", number: "1" },
+    warnings: ["unparsed-remainder"],
+    unparsed: "地下道",
+  },
+  // A bare `B<digit>` is also how a building labels a block. Claiming a basement
+  // there would invent a floor *and* discard the real one, which is worse than
+  // admitting we do not know — so each of these stays whole in `unparsed`.
+  ...(
+    [
+      "地下室",
+      "地下停車場",
+      "B1棟5樓",
+      "B1座10樓",
+      "B1館3樓",
+      "B1區",
+      "B2號",
+      "B1號5樓",
+      "B25室",
+      "b2c咖啡",
+      "B2 Building",
+      "B2大樓",
+      "B棟5樓",
+    ] as const
+  ).map((tail) => ({
+    name: `"${tail}" is not a basement floor`,
+    input: `臺北市中正區重慶南路一段122號${tail}`,
+    parts: basement,
+    warnings: ["unparsed-remainder"] as ParseWarningCode[],
+    unparsed: tail,
+  })),
 ];
 
 describe("parse", () => {
