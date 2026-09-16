@@ -27,6 +27,21 @@ jobs:
       - run: npm run build
       - run: npm run size
 
+  site:
+    # Built on its own leg because Vite needs Node >= 20.19, and because the
+    # service-worker plugin can now fail the build — a bad file under
+    # site/public/, or a worker that does not parse. Without this the first
+    # sign would be a failed Pages deploy after merge.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:site
+
   data-is-current:
     # The committed src/data must be exactly what scripts/build-data.ts produces.
     runs-on: ubuntu-latest

@@ -146,6 +146,9 @@ function parseArgs(argv: string[], version: string): Parsed {
   return parsed;
 }
 
+/** The whole remainder, greedily — it may itself contain a quote. */
+const UNPARSED = /^Could not interpret "([\s\S]+)"\.$/;
+
 /** Human-readable notes for stderr. Empty when the result is fully `exact`. */
 function notes(input: string, result: ReturnType<typeof translate>): string[] {
   const out: string[] = [];
@@ -153,11 +156,24 @@ function notes(input: string, result: ReturnType<typeof translate>): string[] {
     out.push(`${input}: ${result.error.message}`);
     return out;
   }
-  for (const warning of result.warnings ?? []) out.push(`${input}: ${warning.message}`);
-  if (result.unresolved.length > 0) {
-    out.push(
-      `${input}: not in the official list, romanized by rule: ${result.unresolved.join(", ")}`,
-    );
+  const warnings = result.warnings ?? [];
+  for (const warning of warnings) out.push(`${input}: ${warning.message}`);
+
+  // `translate` puts the uninterpreted remainder in `unresolved` as well as
+  // warning about it, and the two say opposite things: "could not interpret
+  // this" versus "romanized by rule". Consume one remainder per fragment, so a
+  // road that happens to read the same as the remainder keeps its own note.
+  const remainders = warnings.flatMap((w) =>
+    w.code === "unparsed-remainder" ? (UNPARSED.exec(w.message)?.[1] ?? []) : [],
+  );
+  const guessed = result.unresolved.filter((fragment) => {
+    const at = remainders.indexOf(fragment);
+    if (at === -1) return true;
+    remainders.splice(at, 1);
+    return false;
+  });
+  if (guessed.length > 0) {
+    out.push(`${input}: not in the official list, romanized by rule: ${guessed.join(", ")}`);
   }
   return out;
 }

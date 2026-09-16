@@ -150,6 +150,27 @@ describe("cli", () => {
       expect(r.stderr).toContain("臺中市");
     });
 
+    it("does not both warn about a fragment and claim it was romanized", () => {
+      // `translate` puts the remainder in `unresolved` as well as warning about
+      // it, so the two notes said opposite things about the same text.
+      const r = runCli(["台北市信義區市府路1號市政大樓"]);
+      expect(r.stderr).toContain('Could not interpret "市政大樓"');
+      expect(r.stderr).not.toContain("romanized by rule");
+    });
+
+    it("still reports a genuinely guessed name", () => {
+      expect(runCli(["台北市信義區不存在的路99號"]).stderr).toContain(
+        "romanized by rule: 不存在的路",
+      );
+    });
+
+    it("separates a guessed name from an uninterpreted remainder", () => {
+      const r = runCli(["台北市信義區不存在的路99號市政大樓"]);
+      expect(r.stderr).toContain('Could not interpret "市政大樓"');
+      expect(r.stderr).toContain("romanized by rule: 不存在的路");
+      expect(r.stderr).not.toContain("romanized by rule: 不存在的路, 市政大樓");
+    });
+
     it("reports a renamed county", () => {
       const r = runCli(["桃園縣中壢市中央西路二段30號"]);
       expect(r.stderr).toContain("桃園縣");
