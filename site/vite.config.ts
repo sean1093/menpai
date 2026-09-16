@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 
@@ -26,9 +27,15 @@ function serviceWorker(base: string): Plugin {
       // bundle does not list the icons or the manifest. Without these the app
       // installs but has no icon offline.
       const publicDir = fileURLToPath(new URL("./public", import.meta.url));
-      const copied = readdirSync(publicDir, { withFileTypes: true })
-        .filter((entry) => entry.isFile())
-        .map((entry) => entry.name);
+      // Recursive, and not `isFile()`: Vite copies subdirectories and follows
+      // symlinks, so anything narrower silently ships files that are neither
+      // precached nor hashed into the version — they would 404 offline, and
+      // changing them would never invalidate an existing install.
+      const copied = readdirSync(publicDir, { recursive: true, withFileTypes: true })
+        .filter((entry) => !entry.isDirectory())
+        .map((entry) =>
+          relative(publicDir, join(entry.parentPath, entry.name)).split(sep).join("/"),
+        );
       // index.html first: it is the shell every navigation falls back to.
       const names = [
         "index.html",
@@ -58,11 +65,29 @@ function serviceWorker(base: string): Plugin {
         // Global, not first-only: the placeholders also appear in the
         // template's own header comment, and a first-only replace substitutes
         // the comment and leaves the code untouched.
-        .replace(/__VERSION__/g, version)
-        .replace(/__PRECACHE__/g, JSON.stringify(precache));
+        //
+        // Function replacements, because a `$` in a file name would otherwise be
+        // read as a replacement pattern ($&, $', $1 …) and corrupt the output.
+        .replace(/__VERSION__/g, () => version)
+        .replace(/__PRECACHE__/g, () => JSON.stringify(precache));
       if (source.includes("__VERSION__") || source.includes("__PRECACHE__")) {
         this.error("service worker template still has unsubstituted placeholders");
       }
+      try {
+        // Compiles without running it. A worker that cannot parse fails to
+        // install, which pins every existing user to the previous version —
+        // silently, and forever. Better to fail the build.
+        new Function(source);
+      } catch (cause) {
+        this.error(`emitted service worker is not valid JavaScript: ${String(cause)}`);
+      }
+      const shipped = new Set([...emitted, ...copied].map((name) => base + name));
+      const missing = [...shipped].filter((name) => !precache.includes(name));
+      if (missing.length > 0) {
+        // A file in the build that the worker does not know about 404s offline.
+        this.error(`these files ship but are not precached: ${missing.join(", ")}`);
+      }
+
       this.emitFile({
         type: "asset",
         fileName: "sw.js",

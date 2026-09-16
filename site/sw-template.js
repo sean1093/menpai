@@ -21,6 +21,12 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE)
       .then((cache) => cache.addAll(PRECACHE))
+      .catch((cause) => {
+        // addAll is atomic: one bad URL and nothing is cached, install fails,
+        // and the app silently has no offline support. Say so somewhere.
+        console.warn("menpai: could not precache, offline support is off", cause);
+        throw cause;
+      })
       // Take over straight away: the alternative is waiting for every tab to
       // close, which can leave someone on an out-of-date address dictionary.
       .then(() => self.skipWaiting()),
