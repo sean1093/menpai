@@ -78,6 +78,11 @@ describe("format: order and abbreviations", () => {
     // Not basement levels: pass them through rather than rewriting them to `B室` / `BF`.
     ["地下室 is left alone", { floor: "地下室" }, "地下室 F."],
     ["bF is left alone", { floor: "bF" }, "bF F."],
+    ["lettered room", { room: "A" }, "Rm. A"],
+    ["lettered room is upper-cased", { room: "a" }, "Rm. A"],
+    ["letter-and-digit room", { room: "A1" }, "Rm. A1"],
+    ["lettered floor suffix", { floor: "3", floorSuffix: "b" }, "3 F.-B"],
+    ["non-unit room text passes through", { room: "會議" }, "Rm. 會議"],
   ];
   for (const [name, parts, expected] of abbreviations) {
     it(name, () => {

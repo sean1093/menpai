@@ -303,6 +303,48 @@ const cases: Case[] = [
     parts: { ...basement, floor: "B1" },
   },
   {
+    name: "lettered room",
+    input: "臺北市中正區重慶南路一段122號3樓A室",
+    parts: { ...basement, floor: "3", room: "A" },
+  },
+  {
+    name: "lettered room is upper-cased",
+    input: "臺北市中正區重慶南路一段122號3樓a室",
+    parts: { ...basement, floor: "3", room: "A" },
+  },
+  {
+    name: "letter-and-digit room",
+    input: "臺北市中正區重慶南路一段122號A1室",
+    parts: { ...basement, room: "A1" },
+  },
+  {
+    name: "full-width lettered room",
+    input: "臺北市中正區重慶南路一段122號Ａ１室",
+    parts: { ...basement, room: "A1" },
+  },
+  {
+    name: "lettered floor suffix",
+    input: "臺北市中正區重慶南路一段122號3樓之A",
+    parts: { ...basement, floor: "3", floorSuffix: "A" },
+  },
+  {
+    name: "lettered floor suffix after 3F-",
+    input: "臺北市中正區重慶南路一段122號3F-A",
+    parts: { ...basement, floor: "3", floorSuffix: "A" },
+  },
+  {
+    // Not a basement: `B25室` is unit B25. Before lettered units existed this
+    // stayed in `unparsed`; reading it as a *floor* would still be wrong.
+    name: "B25室 is room B25, not floor B25",
+    input: "臺北市中正區重慶南路一段122號B25室",
+    parts: { ...basement, room: "B25" },
+  },
+  {
+    name: "bare basement before a lettered room",
+    input: "臺北市中正區重慶南路一段122號B2 A室",
+    parts: { ...basement, floor: "B2", room: "A" },
+  },
+  {
     name: "地下道 is not a basement floor",
     input: "臺北市信義區市府路1號地下道",
     parts: { city: "臺北市", area: "信義區", road: "市府路", number: "1" },
@@ -322,11 +364,14 @@ const cases: Case[] = [
       "B1區",
       "B2號",
       "B1號5樓",
-      "B25室",
       "b2c咖啡",
       "B2 Building",
       "B2大樓",
       "B棟5樓",
+      // Two letters or three digits is a building name, not a unit.
+      "AB室",
+      "A123室",
+      "會議室",
     ] as const
   ).map((tail) => ({
     name: `"${tail}" is not a basement floor`,

@@ -13,6 +13,13 @@ import { normalizeSections, normalizeZh, ZH_NUMERAL_CLASS, zhNumeralToInt } from
 import type { AddressParts, ParseResult, ParseWarning } from "./types.js";
 
 const NUM = `[0-9${ZH_NUMERAL_CLASS}]+`;
+/**
+ * A unit designator: a number, or a Latin letter optionally carrying up to two
+ * digits (`A室`, `A1室`, `3樓之B`). Deliberately narrow — the trailing lookahead
+ * stops it reaching into a building name, so `AB室` and `A123室` do not match and
+ * are reported rather than half-read.
+ */
+const UNIT = `(?:${NUM}|[A-Za-z][0-9]{0,2}(?![0-9A-Za-z]))`;
 const NEIGHBORHOOD = new RegExp(`^(${NUM})鄰`);
 const NUMERIC_SECTION = /^(\d+)段/;
 const NAMED_SECTION = /^([^0-9巷弄號樓之鄰室]{1,4})段/;
@@ -21,9 +28,12 @@ const NAMED_LANE = /^([^0-9弄號樓之鄰室]{1,8}巷)/;
 const ALLEY = new RegExp(`^(${NUM})弄`);
 const SUB_ALLEY = new RegExp(`^(${NUM})衖`);
 const NUMBER = new RegExp(`^(${NUM})(?:之(${NUM})|-(${NUM}))?號(?:之(${NUM}))?`);
-const FLOOR = new RegExp(`^(${NUM})(?:樓|F)(?:之(${NUM})|-(${NUM}))?`, "i");
+const FLOOR = new RegExp(`^(${NUM})(?:樓|F)(?:之(${UNIT})|-(${UNIT}))?`, "i");
 /** `地下2樓`, `地下二樓之3`, `B2F`, `B2樓`, `地下2層` — an explicit 樓/F/層 settles it. */
-const BASEMENT_MARKED = new RegExp(`^(?:地下|B)(${NUM})(?:樓|F|層)(?:之(${NUM})|-(${NUM}))?`, "i");
+const BASEMENT_MARKED = new RegExp(
+  `^(?:地下|B)(${NUM})(?:樓|F|層)(?:之(${UNIT})|-(${UNIT}))?`,
+  "i",
+);
 /**
  * Bare `B2` / `地下2`, with no 樓/F/層 to confirm it. `B2` is also how buildings
  * label a block (`B1棟`, `B2號`, `B25室`, `b2c咖啡`), and claiming a basement
@@ -31,10 +41,10 @@ const BASEMENT_MARKED = new RegExp(`^(?:地下|B)(${NUM})(?:樓|F|層)(?:之(${N
  * read as a floor when it ends the address, or is followed by a separated room.
  */
 const BASEMENT_BARE = new RegExp(
-  `^(?:地下|B)(${NUM})(?:之(${NUM})|-(${NUM}))?(?=$|\\s+${NUM}室)`,
+  `^(?:地下|B)(${NUM})(?:之(${UNIT})|-(${UNIT}))?(?=$|\\s+${UNIT}室)`,
   "i",
 );
-const ROOM = new RegExp(`^(${NUM})室`);
+const ROOM = new RegExp(`^(${UNIT})室`);
 const VILLAGE = /^([^0-9巷弄號段路街鄰]{1,6}[村里])/;
 const ROAD_FALLBACK = /^([^0-9]{1,12}?(?:大道|路|街|巷|弄))/;
 const AREA_SUFFIX = /[市鄉鎮區]$/;
@@ -49,6 +59,11 @@ function digits(text: string): string {
   if (/^\d+$/.test(text)) return String(Number(text));
   const n = zhNumeralToInt(text);
   return n === null ? text : String(n);
+}
+
+/** A unit designator matched by {@link UNIT}: a number, or a letter kept upper-case. */
+function unit(text: string): string {
+  return /^[A-Za-z]/.test(text) ? text.toUpperCase() : digits(text);
 }
 
 interface Located {
@@ -148,7 +163,8 @@ function locate(
  * Parses a Traditional Chinese address into {@link AddressParts}.
  *
  * Accepts `臺`/`台` variants, full-width digits, Chinese numerals (`四段`, `十二樓`),
- * `3F` for `3樓`, basement floors (`地下2樓`, `B2F`), `1-1號` / `1之1號`, 3 / 3+2 / 3+3
+ * `3F` for `3樓`, basement floors (`地下2樓`, `B2F`), lettered units (`A室`, `3樓之B`),
+ * `1-1號` / `1之1號`, 3 / 3+2 / 3+3
  * postal codes, and whitespace anywhere. Fails only when no city can be determined;
  * anything after the last recognised part is returned in `unparsed`.
  */
@@ -256,13 +272,13 @@ export function parse(input: string): ParseResult {
   if (floor?.[1]) {
     parts.floor = (basement ? "B" : "") + digits(floor[1]);
     const suffix = floor[2] ?? floor[3];
-    if (suffix) parts.floorSuffix = digits(suffix);
+    if (suffix) parts.floorSuffix = unit(suffix);
     rest = advance(rest, floor[0].length);
   }
 
   const room = ROOM.exec(rest);
   if (room?.[1]) {
-    parts.room = digits(room[1]);
+    parts.room = unit(room[1]);
     rest = advance(rest, room[0].length);
   }
 

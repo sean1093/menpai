@@ -85,7 +85,13 @@ const partsArb: fc.Arbitrary<AddressParts> = fc
       { nil: undefined },
     ),
     floorSuffix: fc.option(fc.integer({ min: 1, max: 99 }).map(String), { nil: undefined }),
-    room: fc.option(fc.integer({ min: 1, max: 999 }).map(String), { nil: undefined }),
+    room: fc.option(
+      fc.oneof(
+        fc.integer({ min: 1, max: 999 }).map(String),
+        fc.constantFrom("A", "B", "C", "D", "A1", "B2"),
+      ),
+      { nil: undefined },
+    ),
   })
   .map((r) => {
     const city = CITIES[r.areaRow[0]];
@@ -190,10 +196,12 @@ function compose(parts: AddressParts, style: Style): string {
       tokens.push(style.floorAsF ? `${parts.floor}F${suffix}` : `${n(parts.floor)}樓${suffix}`);
     }
   }
-  if (parts.room) tokens.push(`${n(parts.room)}室`);
+  if (parts.room) tokens.push(`${/^[A-Z]/.test(parts.room) ? parts.room : n(parts.room)}室`);
   // `1樓之1` directly followed by `1室` is ambiguous in Chinese too; a writer
   // would separate two adjacent numerals, so the generator always does.
-  const NUMERAL = /[0-9０-９〇一二三四五六七八九十百千]/;
+  // A letter is as ambiguous against a preceding numeral as another numeral is
+  // (`B2` + `A室`), so it forces the same separation a writer would use.
+  const NUMERAL = /[0-9０-９A-Za-z〇一二三四五六七八九十百千]/;
   let out = "";
   for (const token of tokens) {
     if (out.length > 0) {
