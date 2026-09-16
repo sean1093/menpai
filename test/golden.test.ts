@@ -13,8 +13,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CITIES } from "../src/data/places.js";
-import { translate } from "../src/index.js";
-import type { Romanization } from "../src/types.js";
+import { parse, translate } from "../src/index.js";
+import type { Confidence, Romanization } from "../src/types.js";
 
 /**
  * Cases verified against the official tool. **Raise this as cases are verified;
@@ -35,6 +35,12 @@ interface GoldenCase {
   expected: string | null;
   romanization: Romanization;
   note: string;
+  /**
+   * What confidence this address should come back with. Defaults to `exact`.
+   * Set it to pin a road that is not in the official list — those are exactly
+   * the cases where a human's reading of the official tool adds the most.
+   */
+  confidence?: Confidence;
   /** ISO date the case was read from the official tool. Required once verified. */
   verifiedAt?: string;
   /** Where it was read from. Required once verified. */
@@ -42,6 +48,14 @@ interface GoldenCase {
 }
 
 const ROMANIZATIONS: Romanization[] = ["hanyu", "tongyong", "wade-giles"];
+const CONFIDENCES: Confidence[] = ["exact", "inferred", "unknown"];
+
+/**
+ * Wade-Giles is never `exact` by design — no official reference exists for it —
+ * but only segments that go through romanization are lowered, so an address
+ * with no road or district still comes back `exact`. Hence "at most", not "is".
+ */
+const RANK: Record<Confidence, number> = { exact: 2, inferred: 1, unknown: 0 };
 
 function isGoldenCase(value: unknown): value is GoldenCase {
   if (!value || typeof value !== "object") return false;
@@ -50,6 +64,7 @@ function isGoldenCase(value: unknown): value is GoldenCase {
     return false;
   if (!("romanization" in value) || !ROMANIZATIONS.some((r) => r === value.romanization))
     return false;
+  if ("confidence" in value && !CONFIDENCES.some((c) => c === value.confidence)) return false;
   return "note" in value && typeof value.note === "string";
 }
 
@@ -57,6 +72,7 @@ const raw: unknown = JSON.parse(
   readFileSync(new URL("./fixtures/golden.json", import.meta.url), "utf8"),
 );
 const cases: GoldenCase[] = Array.isArray(raw) ? raw.filter(isGoldenCase) : [];
+const parsed = cases.map((c) => ({ input: c.input, result: parse(c.input) }));
 const verified = cases.filter((c) => c.expected !== null);
 const percent = cases.length === 0 ? 0 : Math.round((verified.length / cases.length) * 100);
 
@@ -81,6 +97,11 @@ describe("golden: official Chunghwa Post output", () => {
       expect(c.verifiedAt, `${c.input}: verifiedAt must be an ISO date`).toMatch(
         /^\d{4}-\d{2}-\d{2}$/,
       );
+      // "9999-99-99" has the right shape and is not a date.
+      expect(
+        Number.isNaN(Date.parse(c.verifiedAt ?? "")),
+        `${c.input}: verifiedAt ${c.verifiedAt} is not a real date`,
+      ).toBe(false);
     }
   });
 
@@ -89,17 +110,35 @@ describe("golden: official Chunghwa Post output", () => {
       expect(cases.length).toBeGreaterThanOrEqual(100);
     });
 
+    it("matches the count the README quotes", () => {
+      // The README's whole pitch is that the number is never in doubt, so a
+      // hard-coded numeral in prose has to be checked against the real one.
+      const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+      const quoted = [...readme.matchAll(/(\d+) of (\d+) verified/g)].map((m) => m.slice(1));
+      expect(quoted.length, "README should state the golden progress once").toBe(1);
+      expect(quoted[0]).toEqual([String(verified.length), String(cases.length)]);
+    });
+
     it("reaches every city and county", () => {
-      const seen = new Set(
-        cases.map((c) => {
-          const withoutZip = c.input.replace(/^\d{3,6}[\s-]*/, "").replace(/台/g, "臺");
-          return withoutZip.slice(0, 3);
-        }),
-      );
+      // Ask the parser, not the first three characters of the string. Slicing
+      // breaks on every spelling the library advertises — a leading space, a
+      // full-width postal code, a hyphenated 3+3 code — and would fail CI with a
+      // misleading message for a perfectly valid case.
+      const seen = new Set(parsed.map(({ result }) => (result.ok ? result.parts.city : undefined)));
       const missing = CITIES.map(([zh]) => zh).filter(
         (zh) => !seen.has(zh) && !NO_ADDRESSES.has(zh),
       );
       expect(missing, "golden.json should exercise every city").toEqual([]);
+    });
+
+    it("covers each city with a real street address", () => {
+      // A bare "連江縣" parses and translates at `exact`, so without this a whole
+      // county's coverage could be satisfied by a case that exercises no
+      // district, no road and no number.
+      const thin = parsed
+        .filter(({ result }) => result.ok && result.parts.number === undefined)
+        .map(({ input }) => input);
+      expect(thin, "a golden case should be an address, not just a place name").toEqual([]);
     });
 
     it("exercises more than one romanization", () => {
@@ -107,25 +146,26 @@ describe("golden: official Chunghwa Post output", () => {
     });
 
     it("has no duplicate input/romanization pairs", () => {
-      const keys = cases.map(
-        (c) => `${c.input}
-${c.romanization}`,
-      );
+      const keys = cases.map((c) => `${c.input}\u0000${c.romanization}`);
       expect(keys.length - new Set(keys).size).toBe(0);
     });
   });
 
   // Runs for verified and pending cases alike: a fixture that stops parsing, or
   // whose confidence drops, is a regression whatever the official spelling is.
-  it("every case still translates to a confident address", () => {
+  it("every case still translates at the confidence it declares", () => {
     const broken: string[] = [];
     for (const c of cases) {
       const r = translate(c.input, { romanization: c.romanization });
-      // Wade-Giles is never `exact` by design — no official reference exists for it.
-      const want = c.romanization === "wade-giles" ? "inferred" : "exact";
-      if (r.english === "" || r.confidence !== want) {
+      const want = c.confidence ?? "exact";
+      const ok =
+        r.english !== "" &&
+        (c.romanization === "wade-giles"
+          ? RANK[r.confidence] <= RANK[want]
+          : r.confidence === want);
+      if (!ok) {
         broken.push(
-          `${c.input} [${c.romanization}] → ${r.confidence} ${JSON.stringify(r.english)}`,
+          `${c.input} [${c.romanization}] → ${r.confidence}, expected ${want} ${JSON.stringify(r.english)}`,
         );
       }
     }
@@ -142,7 +182,7 @@ ${c.romanization}`,
       it(name, () => {
         const r = translate(c.input, { romanization: c.romanization });
         expect(r.english).toBe(c.expected);
-        expect(r.confidence).toBe(c.romanization === "wade-giles" ? "inferred" : "exact");
+        expect(RANK[r.confidence]).toBeLessThanOrEqual(RANK[c.confidence ?? "exact"]);
       });
     }
   });

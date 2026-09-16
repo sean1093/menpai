@@ -748,5 +748,19 @@
     "expected": null,
     "romanization": "hanyu",
     "note": "lettered floor suffix"
+  },
+  {
+    "input": "新竹市東區竹科路1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "confidence": "inferred",
+    "note": "road not in the official list; romanized by rule — the official tool's answer is worth pinning"
+  },
+  {
+    "input": "臺中市北屯區廍子路100號",
+    "expected": null,
+    "romanization": "hanyu",
+    "confidence": "unknown",
+    "note": "廍 has no reading in the char table; passed through — see what the official tool does"
   }
 ]
