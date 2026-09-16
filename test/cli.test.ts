@@ -68,6 +68,34 @@ describe("cli", () => {
       expect(r.code).toBe(1);
     });
 
+    it("rejects a value on a flag that takes none", () => {
+      // `--json=false` used to enable JSON — the opposite of what was written.
+      for (const argv of [
+        ["--json=false", TAIPEI],
+        ["--quiet=off", TAIPEI],
+        ["--no-country=false", TAIPEI],
+      ]) {
+        const r = runCli(argv);
+        expect(r.code, argv.join(" ")).toBe(2);
+        expect(r.stderr).toContain("takes no value");
+      }
+    });
+
+    it('says "nothing" for an empty option value', () => {
+      // An empty string is not nullish, so `?? \"nothing\"` used to print nothing.
+      expect(runCli(["--romanization=", TAIPEI]).stderr).toContain("got nothing");
+      expect(runCli(["--postal-code=", TAIPEI]).stderr).toContain("got nothing");
+    });
+
+    it("treats - as stdin, not as an address", () => {
+      expect(runCli(["-"], TAIPEI).stdout).toBe(`${TAIPEI_EN}\n`);
+    });
+
+    it("does not let an empty argument suppress stdin", () => {
+      // `menpai "$ADDR"` with ADDR unset used to swallow the piped batch.
+      expect(runCli([""], TAIPEI).stdout).toBe(`${TAIPEI_EN}\n`);
+    });
+
     it("stops reading options after --", () => {
       // Lets an address that starts with a dash through.
       expect(runCli(["--", TAIPEI]).stdout).toBe(`${TAIPEI_EN}\n`);
@@ -157,6 +185,8 @@ describe("cli", () => {
       expect(wantsStdin([])).toBe(true);
       expect(wantsStdin(["--json"])).toBe(true);
       expect(wantsStdin(["-r", "tongyong", "--no-country"])).toBe(true);
+      expect(wantsStdin(["-"])).toBe(true);
+      expect(wantsStdin([""])).toBe(true);
     });
   });
 

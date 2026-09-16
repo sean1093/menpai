@@ -201,7 +201,9 @@ menpai --json "台北市信義區不存在的路99號"
 
 Addresses go to stdout, notes and warnings to stderr, so a pipe stays clean. The exit status is the batch verdict: `0` when every address came back `exact`, `1` when at least one is `inferred` or `unknown` and wants a human, `2` for a usage error.
 
-`--romanization <hanyu|tongyong|wade-giles>`, `--postal-code <3|5|6>`, `--no-country`, `--json`, `--quiet`, `--help`, `--version`. Run `menpai --help` for the full text.
+`--romanization <hanyu|tongyong|wade-giles>`, `--postal-code <3|5|6>` (trims; it never adds digits the input did not carry), `--no-country`, `--json`, `--quiet`, `--help`, `--version`. Run `menpai --help` for the full text.
+
+Output is one line per non-blank input line — a row that fails still emits an empty line, so line *n* out stays line *n* in.
 
 ## Using it in a checkout, CRM, or label printer
 

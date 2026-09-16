@@ -16,6 +16,8 @@ export interface CliResult {
 }
 
 const ROMANIZATIONS: Romanization[] = ["hanyu", "tongyong", "wade-giles"];
+/** Flags that accept `--flag value` or `--flag=value`. Every other flag is a switch. */
+const TAKES_VALUE = new Set(["-r", "--romanization", "-p", "--postal-code"]);
 
 const HELP = `menpai — translate Taiwan addresses into the Chunghwa Post English format
 
@@ -23,12 +25,15 @@ Usage
   menpai [options] <address>...
   cat addresses.txt | menpai [options]
 
-  With no address argument, reads stdin and translates one address per line.
-  Blank lines are skipped.
+  With no address argument (or with a single - argument) reads stdin and
+  translates one address per line. Blank lines are skipped, so the output has
+  one line per non-blank input line: an address that fails still emits an empty
+  line, but a blank row does not.
 
 Options
   -r, --romanization <system>  hanyu (default) | tongyong | wade-giles
-  -p, --postal-code <digits>   3 | 5 | 6 — how many digits to emit
+  -p, --postal-code <digits>   3 | 5 | 6 — trim to at most this many digits
+                               (it never adds digits the input did not carry)
       --no-country             omit the trailing ", Taiwan (R.O.C.)"
   -j, --json                   one JSON object per line, with confidence and segments
   -q, --quiet                  do not write notes to stderr
@@ -68,6 +73,9 @@ function parseArgs(argv: string[], version: string): Parsed {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i] ?? "";
     if (onlyPositional || !arg.startsWith("-") || arg === "-") {
+      // `-` conventionally means stdin, and an empty argument is not an address;
+      // treating either as one would suppress stdin and translate nothing.
+      if (!onlyPositional && (arg === "-" || arg === "")) continue;
       parsed.addresses.push(arg);
       continue;
     }
@@ -76,6 +84,11 @@ function parseArgs(argv: string[], version: string): Parsed {
     const flag = eq === -1 ? arg : arg.slice(0, eq);
     const inline = eq === -1 ? undefined : arg.slice(eq + 1);
     const next = (): string | undefined => inline ?? argv[++i];
+    // `--json=false` used to enable JSON. Silently doing the opposite of what
+    // someone wrote is worse than telling them the flag takes no value.
+    if (inline !== undefined && !TAKES_VALUE.has(flag)) {
+      return { ...parsed, error: `${flag} takes no value` };
+    }
 
     switch (flag) {
       case "--":
@@ -108,7 +121,7 @@ function parseArgs(argv: string[], version: string): Parsed {
         if (!found) {
           return {
             ...parsed,
-            error: `--romanization expects ${ROMANIZATIONS.join(", ")}; got ${value ?? "nothing"}`,
+            error: `--romanization expects ${ROMANIZATIONS.join(", ")}; got ${value || "nothing"}`,
           };
         }
         parsed.options.romanization = found;
@@ -120,7 +133,7 @@ function parseArgs(argv: string[], version: string): Parsed {
         if (value !== "3" && value !== "5" && value !== "6") {
           return {
             ...parsed,
-            error: `--postal-code expects 3, 5 or 6; got ${value ?? "nothing"}`,
+            error: `--postal-code expects 3, 5 or 6; got ${value || "nothing"}`,
           };
         }
         parsed.options.postalCode = Number(value) as 3 | 5 | 6;
