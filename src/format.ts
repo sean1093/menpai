@@ -39,7 +39,8 @@ function digits(text: string): string {
 
 /**
  * A unit designator: a number, or a Latin letter optionally carrying up to two
- * digits, kept upper-case (`a` → `A`). Anything else passes through as written.
+ * digits, kept upper-case (`a` → `A`). Anything else passes through as written,
+ * so `room: "ab"` stays `ab` — only the shape `parse()` can produce is normalised.
  */
 function unitValue(text: string): string {
   const t = normalizeZh(text);

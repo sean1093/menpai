@@ -63,6 +63,8 @@ function renderNumber(n: string, style: NumeralStyle): string {
 
 const numeralStyle = fc.constantFrom<NumeralStyle>("ascii", "fullwidth", "chinese");
 const smallNumber = fc.integer({ min: 1, max: 999 }).map(String);
+/** A lettered unit is written as-is; only numbers get re-spelled. */
+const isLetterUnit = (value: string) => /^[A-Za-z]/.test(value);
 
 const partsArb: fc.Arbitrary<AddressParts> = fc
   .record({
@@ -84,7 +86,13 @@ const partsArb: fc.Arbitrary<AddressParts> = fc
       ),
       { nil: undefined },
     ),
-    floorSuffix: fc.option(fc.integer({ min: 1, max: 99 }).map(String), { nil: undefined }),
+    floorSuffix: fc.option(
+      fc.oneof(
+        fc.integer({ min: 1, max: 99 }).map(String),
+        fc.constantFrom("A", "B", "C", "A1", "B2"),
+      ),
+      { nil: undefined },
+    ),
     room: fc.option(
       fc.oneof(
         fc.integer({ min: 1, max: 999 }).map(String),
@@ -149,7 +157,7 @@ const styleArb: fc.Arbitrary<Style> = fc.record({
 
 /** Writes the parts back out as a Chinese address in the requested spelling. */
 function compose(parts: AddressParts, style: Style): string {
-  const n = (v: string) => renderNumber(v, style.numerals);
+  const n = (v: string) => (isLetterUnit(v) ? v : renderNumber(v, style.numerals));
   const tokens: string[] = [];
   if (parts.postalCode) tokens.push(parts.postalCode);
   tokens.push(style.tai ? (parts.city ?? "").replace(/臺/g, "台") : (parts.city ?? ""));
@@ -176,7 +184,7 @@ function compose(parts: AddressParts, style: Style): string {
           ? ""
           : style.basementStyle === "地下樓"
             ? `之${n(parts.floorSuffix)}`
-            : `${style.basementSuffix}${parts.floorSuffix}`;
+            : `${style.basementSuffix}${n(parts.floorSuffix)}`;
       // `B` is written upper-case, lower-case and full-width in the wild.
       const b =
         style.basementCase === "lower" ? "b" : style.basementCase === "fullwidth" ? "Ｂ" : "B";
@@ -196,7 +204,7 @@ function compose(parts: AddressParts, style: Style): string {
       tokens.push(style.floorAsF ? `${parts.floor}F${suffix}` : `${n(parts.floor)}樓${suffix}`);
     }
   }
-  if (parts.room) tokens.push(`${/^[A-Z]/.test(parts.room) ? parts.room : n(parts.room)}室`);
+  if (parts.room) tokens.push(`${n(parts.room)}室`);
   // `1樓之1` directly followed by `1室` is ambiguous in Chinese too; a writer
   // would separate two adjacent numerals, so the generator always does.
   // A letter is as ambiguous against a preceding numeral as another numeral is

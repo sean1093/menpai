@@ -16,10 +16,10 @@ const NUM = `[0-9${ZH_NUMERAL_CLASS}]+`;
 /**
  * A unit designator: a number, or a Latin letter optionally carrying up to two
  * digits (`A室`, `A1室`, `3樓之B`). Deliberately narrow — the trailing lookahead
- * stops it reaching into a building name, so `AB室` and `A123室` do not match and
- * are reported rather than half-read.
+ * stops it reaching into a building name, so `AB室`, `A123室` and `3樓之B棟` do
+ * not match and are reported rather than half-read.
  */
-const UNIT = `(?:${NUM}|[A-Za-z][0-9]{0,2}(?![0-9A-Za-z]))`;
+const UNIT = `(?:${NUM}|[A-Za-z][0-9]{0,2}(?![0-9A-Za-z棟座館區]))`;
 const NEIGHBORHOOD = new RegExp(`^(${NUM})鄰`);
 const NUMERIC_SECTION = /^(\d+)段/;
 const NAMED_SECTION = /^([^0-9巷弄號樓之鄰室]{1,4})段/;

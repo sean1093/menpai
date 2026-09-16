@@ -340,6 +340,27 @@ const cases: Case[] = [
     parts: { ...basement, room: "B25" },
   },
   {
+    // A block marker after the letter means it was never a unit: the floor is
+    // still read, but `之B棟` is reported whole rather than half-consumed.
+    name: "block marker after a lettered suffix is refused",
+    input: "臺北市中正區重慶南路一段122號3樓之B棟",
+    parts: { ...basement, floor: "3" },
+    warnings: ["unparsed-remainder"],
+    unparsed: "之B棟",
+  },
+  {
+    name: "block marker 座 after a lettered suffix is refused",
+    input: "臺北市中正區重慶南路一段122號3樓之B座",
+    parts: { ...basement, floor: "3" },
+    warnings: ["unparsed-remainder"],
+    unparsed: "之B座",
+  },
+  {
+    name: "bare basement with a lettered suffix",
+    input: "臺北市中正區重慶南路一段122號B1-A",
+    parts: { ...basement, floor: "B1", floorSuffix: "A" },
+  },
+  {
     name: "bare basement before a lettered room",
     input: "臺北市中正區重慶南路一段122號B2 A室",
     parts: { ...basement, floor: "B2", room: "A" },
@@ -372,6 +393,8 @@ const cases: Case[] = [
       "AB室",
       "A123室",
       "會議室",
+      // No separator: could be block B2 room A, or room B2A. Do not guess.
+      "B2A室",
     ] as const
   ).map((tail) => ({
     name: `"${tail}" is not a basement floor`,
