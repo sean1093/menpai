@@ -20,6 +20,15 @@ const base: AddressParts = {
   floorSuffix: "2",
 };
 
+/** Everything above the floor for the basement cases below. */
+const basement: AddressParts = {
+  city: "臺北市",
+  area: "中正區",
+  road: "重慶南路",
+  section: "1",
+  number: "122",
+};
+
 const cases: Case[] = [
   { name: "canonical", input: "臺北市大安區忠孝東路四段1號3樓之2", parts: base },
   { name: "台 variant", input: "台北市大安區忠孝東路四段1號3樓之2", parts: base },
@@ -227,6 +236,58 @@ const cases: Case[] = [
     parts: { city: "臺北市", area: "信義區", road: "市府路", number: "1" },
     warnings: ["unparsed-remainder"],
     unparsed: "市政大樓",
+  },
+  {
+    name: "地下N樓 basement",
+    input: "臺北市中正區重慶南路一段122號地下2樓",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "地下 with a Chinese numeral",
+    input: "臺北市中正區重慶南路一段122號地下二樓",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "BN basement",
+    input: "臺北市中正區重慶南路一段122號B2",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "BNF basement",
+    input: "臺北市中正區重慶南路一段122號B2F",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "lower-case bN basement",
+    input: "臺北市中正區重慶南路一段122號b2",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "B2樓 basement",
+    input: "臺北市中正區重慶南路一段122號B2樓",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "basement with a floor suffix",
+    input: "臺北市中正區重慶南路一段122號地下2樓之3",
+    parts: { ...basement, floor: "B2", floorSuffix: "3" },
+  },
+  {
+    name: "basement with a hyphen suffix",
+    input: "臺北市中正區重慶南路一段122號B2-3",
+    parts: { ...basement, floor: "B2", floorSuffix: "3" },
+  },
+  {
+    name: "basement then room",
+    input: "臺北市中正區重慶南路一段122號地下2樓 5室",
+    parts: { ...basement, floor: "B2", room: "5" },
+  },
+  {
+    name: "地下道 is not a basement floor",
+    input: "臺北市信義區市府路1號地下道",
+    parts: { city: "臺北市", area: "信義區", road: "市府路", number: "1" },
+    warnings: ["unparsed-remainder"],
+    unparsed: "地下道",
   },
 ];
 

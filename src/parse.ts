@@ -22,6 +22,8 @@ const ALLEY = new RegExp(`^(${NUM})弄`);
 const SUB_ALLEY = new RegExp(`^(${NUM})衖`);
 const NUMBER = new RegExp(`^(${NUM})(?:之(${NUM})|-(${NUM}))?號(?:之(${NUM}))?`);
 const FLOOR = new RegExp(`^(${NUM})(?:樓|F)(?:之(${NUM})|-(${NUM}))?`, "i");
+/** `地下2樓`, `地下二樓之3`, `B2`, `B2F`, `B2樓`, `B2-3` — the floor becomes `B2`. */
+const BASEMENT = new RegExp(`^(?:地下|B)(${NUM})(?:樓|F)?(?:之(${NUM})|-(${NUM}))?`, "i");
 const ROOM = new RegExp(`^(${NUM})室`);
 const VILLAGE = /^([^0-9巷弄號段路街鄰]{1,6}[村里])/;
 const ROAD_FALLBACK = /^([^0-9]{1,12}?(?:大道|路|街|巷|弄))/;
@@ -239,9 +241,10 @@ export function parse(input: string): ParseResult {
     rest = advance(rest, number[0].length);
   }
 
-  const floor = FLOOR.exec(rest);
+  const basement = BASEMENT.exec(rest);
+  const floor = basement ?? FLOOR.exec(rest);
   if (floor?.[1]) {
-    parts.floor = digits(floor[1]);
+    parts.floor = (basement ? "B" : "") + digits(floor[1]);
     const suffix = floor[2] ?? floor[3];
     if (suffix) parts.floorSuffix = digits(suffix);
     rest = advance(rest, floor[0].length);

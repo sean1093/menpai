@@ -66,7 +66,13 @@ const partsArb: fc.Arbitrary<AddressParts> = fc
     alley: fc.option(smallNumber, { nil: undefined }),
     number: fc.integer({ min: 1, max: 9999 }).map(String),
     numberSuffix: fc.option(fc.integer({ min: 1, max: 99 }).map(String), { nil: undefined }),
-    floor: fc.option(fc.integer({ min: 1, max: 99 }).map(String), { nil: undefined }),
+    floor: fc.option(
+      fc.oneof(
+        fc.integer({ min: 1, max: 99 }).map(String),
+        fc.integer({ min: 1, max: 9 }).map((n) => `B${n}`),
+      ),
+      { nil: undefined },
+    ),
     floorSuffix: fc.option(fc.integer({ min: 1, max: 99 }).map(String), { nil: undefined }),
     room: fc.option(fc.integer({ min: 1, max: 999 }).map(String), { nil: undefined }),
   })
@@ -98,6 +104,7 @@ interface Style {
   numerals: NumeralStyle;
   sectionNumerals: NumeralStyle;
   floorAsF: boolean;
+  basementStyle: "地下樓" | "B" | "BF" | "B樓";
   suffixStyle: "之" | "-" | "號之";
   separator: "" | " " | "，";
 }
@@ -106,6 +113,7 @@ const styleArb: fc.Arbitrary<Style> = fc.record({
   numerals: numeralStyle,
   sectionNumerals: numeralStyle,
   floorAsF: fc.boolean(),
+  basementStyle: fc.constantFrom<"地下樓" | "B" | "BF" | "B樓">("地下樓", "B", "BF", "B樓"),
   suffixStyle: fc.constantFrom<"之" | "-" | "號之">("之", "-", "號之"),
   separator: fc.constantFrom<"" | " " | "，">("", " ", "，"),
 });
@@ -131,13 +139,28 @@ function compose(parts: AddressParts, style: Style): string {
     else tokens.push(`${n(parts.number)}號之${n(suffix)}`);
   }
   if (parts.floor) {
-    const suffix =
-      parts.floorSuffix === undefined
-        ? ""
-        : style.floorAsF
-          ? `-${n(parts.floorSuffix)}`
-          : `之${n(parts.floorSuffix)}`;
-    tokens.push(style.floorAsF ? `${parts.floor}F${suffix}` : `${n(parts.floor)}樓${suffix}`);
+    const basementLevel = /^B(\d+)$/.exec(parts.floor)?.[1];
+    if (basementLevel !== undefined) {
+      // `B2-3` and `B2之3` are both written; `地下二樓` takes the Chinese numeral.
+      const suffix =
+        parts.floorSuffix === undefined
+          ? ""
+          : style.basementStyle === "地下樓"
+            ? `之${n(parts.floorSuffix)}`
+            : `-${parts.floorSuffix}`;
+      if (style.basementStyle === "地下樓") tokens.push(`地下${n(basementLevel)}樓${suffix}`);
+      else if (style.basementStyle === "B") tokens.push(`B${basementLevel}${suffix}`);
+      else if (style.basementStyle === "BF") tokens.push(`B${basementLevel}F${suffix}`);
+      else tokens.push(`B${basementLevel}樓${suffix}`);
+    } else {
+      const suffix =
+        parts.floorSuffix === undefined
+          ? ""
+          : style.floorAsF
+            ? `-${n(parts.floorSuffix)}`
+            : `之${n(parts.floorSuffix)}`;
+      tokens.push(style.floorAsF ? `${parts.floor}F${suffix}` : `${n(parts.floor)}樓${suffix}`);
+    }
   }
   if (parts.room) tokens.push(`${n(parts.room)}室`);
   // `1樓之1` directly followed by `1室` is ambiguous in Chinese too; a writer

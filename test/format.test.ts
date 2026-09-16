@@ -70,6 +70,11 @@ describe("format: order and abbreviations", () => {
       "12 F., No. 12, Ln. 216, Sec. 4",
     ],
     ["full-width inputs", { number: "１２", floor: "３" }, "3 F., No. 12"],
+    ["地下 → B1 F.", { floor: "B1" }, "B1 F."],
+    ["地下 with suffix", { floor: "B1", floorSuffix: "2" }, "B1 F.-2"],
+    ["lower-case b is normalised", { floor: "b1" }, "B1 F."],
+    ["raw 地下2 is normalised", { floor: "地下2" }, "B2 F."],
+    ["raw 地下二 is normalised", { floor: "地下二" }, "B2 F."],
   ];
   for (const [name, parts, expected] of abbreviations) {
     it(name, () => {
