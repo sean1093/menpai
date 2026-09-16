@@ -333,7 +333,7 @@ const cases: Case[] = [
     input: `臺北市中正區重慶南路一段122號${tail}`,
     parts: basement,
     warnings: ["unparsed-remainder"] as ParseWarningCode[],
-    unparsed: tail.replace(/ /g, " "),
+    unparsed: tail,
   })),
 ];
 
