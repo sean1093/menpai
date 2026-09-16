@@ -718,5 +718,23 @@
     "expected": null,
     "romanization": "hanyu",
     "note": "village + road; official web tool omits 村"
+  },
+  {
+    "input": "臺北市中正區重慶南路一段122號地下一樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "basement floor written 地下一樓"
+  },
+  {
+    "input": "臺北市中正區重慶南路一段122號B1",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "basement floor written B1"
+  },
+  {
+    "input": "臺北市中正區重慶南路一段122號地下二樓之3",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "basement floor with a 之 suffix"
   }
 ]

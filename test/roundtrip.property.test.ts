@@ -20,6 +20,17 @@ const villageNames = [...decodeList(VILLAGES).keys()].filter(
 );
 const areaRows = AREAS.filter((row) => row[1] !== "");
 
+/**
+ * Roads the official list spells out per section (`大學路1段` → `Sec. 1, University
+ * Road`, which is not `Sec. 1` + the spelling of `大學路`). For those, road and
+ * section are not independent, so the generator never pairs them with a section —
+ * the composed text would parse back with the whole thing as the road, which is
+ * the correct answer but not the one this property is written to check.
+ */
+const roadsWithOwnSections = new Set(
+  [...decodeList(ROADS).keys()].flatMap((zh) => /^(.+?)[0-9]+段$/.exec(zh)?.[1] ?? []),
+);
+
 const ZH_DIGITS = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
 function toZhNumeral(n: number): string {
   if (n >= 1000) {
@@ -89,7 +100,7 @@ const partsArb: fc.Arbitrary<AddressParts> = fc
     if (r.village !== undefined) parts.village = r.village;
     if (r.village !== undefined && r.neighborhood !== undefined)
       parts.neighborhood = r.neighborhood;
-    if (r.section !== undefined) parts.section = r.section;
+    if (r.section !== undefined && !roadsWithOwnSections.has(r.road)) parts.section = r.section;
     if (r.lane !== undefined) parts.lane = r.lane;
     if (r.lane !== undefined && r.alley !== undefined) parts.alley = r.alley;
     if (r.numberSuffix !== undefined) parts.numberSuffix = r.numberSuffix;
@@ -104,7 +115,11 @@ interface Style {
   numerals: NumeralStyle;
   sectionNumerals: NumeralStyle;
   floorAsF: boolean;
-  basementStyle: "地下樓" | "B" | "BF" | "B樓";
+  basementStyle: "地下樓" | "地下層" | "B" | "BF" | "B樓";
+  /** `B2-3` vs `B2之3`. */
+  basementSuffix: "-" | "之";
+  /** `B2` written full-width as `Ｂ２`, and lower-case `b2`. */
+  basementCase: "upper" | "lower" | "fullwidth";
   suffixStyle: "之" | "-" | "號之";
   separator: "" | " " | "，";
 }
@@ -113,7 +128,15 @@ const styleArb: fc.Arbitrary<Style> = fc.record({
   numerals: numeralStyle,
   sectionNumerals: numeralStyle,
   floorAsF: fc.boolean(),
-  basementStyle: fc.constantFrom<"地下樓" | "B" | "BF" | "B樓">("地下樓", "B", "BF", "B樓"),
+  basementStyle: fc.constantFrom<"地下樓" | "地下層" | "B" | "BF" | "B樓">(
+    "地下樓",
+    "地下層",
+    "B",
+    "BF",
+    "B樓",
+  ),
+  basementSuffix: fc.constantFrom<"-" | "之">("-", "之"),
+  basementCase: fc.constantFrom<"upper" | "lower" | "fullwidth">("upper", "lower", "fullwidth"),
   suffixStyle: fc.constantFrom<"之" | "-" | "號之">("之", "-", "號之"),
   separator: fc.constantFrom<"" | " " | "，">("", " ", "，"),
 });
@@ -141,17 +164,22 @@ function compose(parts: AddressParts, style: Style): string {
   if (parts.floor) {
     const basementLevel = /^B(\d+)$/.exec(parts.floor)?.[1];
     if (basementLevel !== undefined) {
-      // `B2-3` and `B2之3` are both written; `地下二樓` takes the Chinese numeral.
+      // `地下二樓之3` takes the Chinese numeral; `B2-3` and `B2之3` are both written.
       const suffix =
         parts.floorSuffix === undefined
           ? ""
           : style.basementStyle === "地下樓"
             ? `之${n(parts.floorSuffix)}`
-            : `-${parts.floorSuffix}`;
+            : `${style.basementSuffix}${parts.floorSuffix}`;
+      // `B` is written upper-case, lower-case and full-width in the wild.
+      const b =
+        style.basementCase === "lower" ? "b" : style.basementCase === "fullwidth" ? "Ｂ" : "B";
+      const level = style.basementCase === "fullwidth" ? toFullWidth(basementLevel) : basementLevel;
       if (style.basementStyle === "地下樓") tokens.push(`地下${n(basementLevel)}樓${suffix}`);
-      else if (style.basementStyle === "B") tokens.push(`B${basementLevel}${suffix}`);
-      else if (style.basementStyle === "BF") tokens.push(`B${basementLevel}F${suffix}`);
-      else tokens.push(`B${basementLevel}樓${suffix}`);
+      else if (style.basementStyle === "地下層") tokens.push(`地下${n(basementLevel)}層${suffix}`);
+      else if (style.basementStyle === "B") tokens.push(`${b}${level}${suffix}`);
+      else if (style.basementStyle === "BF") tokens.push(`${b}${level}F${suffix}`);
+      else tokens.push(`${b}${level}樓${suffix}`);
     } else {
       const suffix =
         parts.floorSuffix === undefined

@@ -283,12 +283,58 @@ const cases: Case[] = [
     parts: { ...basement, floor: "B2", room: "5" },
   },
   {
+    name: "地下N層 basement",
+    input: "臺北市中正區重慶南路一段122號地下一層",
+    parts: { ...basement, floor: "B1" },
+  },
+  {
+    name: "地下N層 keeps the room",
+    input: "臺北市中正區重慶南路一段122號地下二層5室",
+    parts: { ...basement, floor: "B2", room: "5" },
+  },
+  {
+    name: "bare B before a separated room",
+    input: "臺北市中正區重慶南路一段122號B2 5室",
+    parts: { ...basement, floor: "B2", room: "5" },
+  },
+  {
+    name: "full-width Ｂ１ basement",
+    input: "臺北市中正區重慶南路一段122號Ｂ１",
+    parts: { ...basement, floor: "B1" },
+  },
+  {
     name: "地下道 is not a basement floor",
     input: "臺北市信義區市府路1號地下道",
     parts: { city: "臺北市", area: "信義區", road: "市府路", number: "1" },
     warnings: ["unparsed-remainder"],
     unparsed: "地下道",
   },
+  // A bare `B<digit>` is also how a building labels a block. Claiming a basement
+  // there would invent a floor *and* discard the real one, which is worse than
+  // admitting we do not know — so each of these stays whole in `unparsed`.
+  ...(
+    [
+      "地下室",
+      "地下停車場",
+      "B1棟5樓",
+      "B1座10樓",
+      "B1館3樓",
+      "B1區",
+      "B2號",
+      "B1號5樓",
+      "B25室",
+      "b2c咖啡",
+      "B2 Building",
+      "B2大樓",
+      "B棟5樓",
+    ] as const
+  ).map((tail) => ({
+    name: `"${tail}" is not a basement floor`,
+    input: `臺北市中正區重慶南路一段122號${tail}`,
+    parts: basement,
+    warnings: ["unparsed-remainder"] as ParseWarningCode[],
+    unparsed: tail.replace(/ /g, " "),
+  })),
 ];
 
 describe("parse", () => {

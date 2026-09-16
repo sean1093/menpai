@@ -105,5 +105,5 @@ npx wrangler deploy examples/cloudflare-worker.mjs --name menpai-api --compatibi
 ## 6. Things menpai will not do for you
 
 - Validate that a house number exists, or look up 3+2 / 3+3 postal codes. Use Chunghwa Post's own services for that; menpai passes a 3+3 code through if the customer typed it.
-- Translate building names, floors written as `地下一樓`, or free-text delivery notes. They come back in `unresolved` so you can show them, not lose them.
+- Translate building names, block labels (`B1棟`), or free-text delivery notes. They come back in `unresolved` so you can show them, not lose them. (Basement *floors* — `地下一樓`, `B1` — are translated, to `B1 F.`)
 - Guarantee the English for names outside the official lists. That is what `inferred` means.

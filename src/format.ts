@@ -43,7 +43,9 @@ function digits(text: string): string {
  * matching the spacing of the above-ground `3 F.` form.
  */
 function floorValue(text: string): string {
-  const basement = /^(?:地下|[Bb])(.+)$/.exec(normalizeZh(text));
+  // Only rewrite when what follows the marker really is a numeral: `地下室` and
+  // `bF` are not basement levels and must pass through as the caller wrote them.
+  const basement = /^(?:地下|[Bb])([0-9〇零一二三四五六七八九十百千兩]+)$/.exec(normalizeZh(text));
   return basement?.[1] === undefined ? digits(text) : `B${digits(basement[1])}`;
 }
 

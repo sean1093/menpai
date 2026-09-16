@@ -75,6 +75,9 @@ describe("format: order and abbreviations", () => {
     ["lower-case b is normalised", { floor: "b1" }, "B1 F."],
     ["raw 地下2 is normalised", { floor: "地下2" }, "B2 F."],
     ["raw 地下二 is normalised", { floor: "地下二" }, "B2 F."],
+    // Not basement levels: pass them through rather than rewriting them to `B室` / `BF`.
+    ["地下室 is left alone", { floor: "地下室" }, "地下室 F."],
+    ["bF is left alone", { floor: "bF" }, "bF F."],
   ];
   for (const [name, parts, expected] of abbreviations) {
     it(name, () => {
