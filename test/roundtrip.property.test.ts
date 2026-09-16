@@ -20,6 +20,17 @@ const villageNames = [...decodeList(VILLAGES).keys()].filter(
 );
 const areaRows = AREAS.filter((row) => row[1] !== "");
 
+/**
+ * Roads the official list spells out per section (`大學路1段` → `Sec. 1, University
+ * Road`, which is not `Sec. 1` + the spelling of `大學路`). For those, road and
+ * section are not independent, so the generator never pairs them with a section —
+ * the composed text would parse back with the whole thing as the road, which is
+ * the correct answer but not the one this property is written to check.
+ */
+const roadsWithOwnSections = new Set(
+  [...decodeList(ROADS).keys()].flatMap((zh) => /^(.+?)[0-9]+段$/.exec(zh)?.[1] ?? []),
+);
+
 const ZH_DIGITS = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
 function toZhNumeral(n: number): string {
   if (n >= 1000) {
@@ -52,6 +63,8 @@ function renderNumber(n: string, style: NumeralStyle): string {
 
 const numeralStyle = fc.constantFrom<NumeralStyle>("ascii", "fullwidth", "chinese");
 const smallNumber = fc.integer({ min: 1, max: 999 }).map(String);
+/** A lettered unit is written as-is; only numbers get re-spelled. */
+const isLetterUnit = (value: string) => /^[A-Za-z]/.test(value);
 
 const partsArb: fc.Arbitrary<AddressParts> = fc
   .record({
@@ -66,9 +79,27 @@ const partsArb: fc.Arbitrary<AddressParts> = fc
     alley: fc.option(smallNumber, { nil: undefined }),
     number: fc.integer({ min: 1, max: 9999 }).map(String),
     numberSuffix: fc.option(fc.integer({ min: 1, max: 99 }).map(String), { nil: undefined }),
-    floor: fc.option(fc.integer({ min: 1, max: 99 }).map(String), { nil: undefined }),
-    floorSuffix: fc.option(fc.integer({ min: 1, max: 99 }).map(String), { nil: undefined }),
-    room: fc.option(fc.integer({ min: 1, max: 999 }).map(String), { nil: undefined }),
+    floor: fc.option(
+      fc.oneof(
+        fc.integer({ min: 1, max: 99 }).map(String),
+        fc.integer({ min: 1, max: 9 }).map((n) => `B${n}`),
+      ),
+      { nil: undefined },
+    ),
+    floorSuffix: fc.option(
+      fc.oneof(
+        fc.integer({ min: 1, max: 99 }).map(String),
+        fc.constantFrom("A", "B", "C", "A1", "B2"),
+      ),
+      { nil: undefined },
+    ),
+    room: fc.option(
+      fc.oneof(
+        fc.integer({ min: 1, max: 999 }).map(String),
+        fc.constantFrom("A", "B", "C", "D", "A1", "B2"),
+      ),
+      { nil: undefined },
+    ),
   })
   .map((r) => {
     const city = CITIES[r.areaRow[0]];
@@ -83,7 +114,7 @@ const partsArb: fc.Arbitrary<AddressParts> = fc
     if (r.village !== undefined) parts.village = r.village;
     if (r.village !== undefined && r.neighborhood !== undefined)
       parts.neighborhood = r.neighborhood;
-    if (r.section !== undefined) parts.section = r.section;
+    if (r.section !== undefined && !roadsWithOwnSections.has(r.road)) parts.section = r.section;
     if (r.lane !== undefined) parts.lane = r.lane;
     if (r.lane !== undefined && r.alley !== undefined) parts.alley = r.alley;
     if (r.numberSuffix !== undefined) parts.numberSuffix = r.numberSuffix;
@@ -98,6 +129,11 @@ interface Style {
   numerals: NumeralStyle;
   sectionNumerals: NumeralStyle;
   floorAsF: boolean;
+  basementStyle: "地下樓" | "地下層" | "B" | "BF" | "B樓";
+  /** `B2-3` vs `B2之3`. */
+  basementSuffix: "-" | "之";
+  /** `B2` written full-width as `Ｂ２`, and lower-case `b2`. */
+  basementCase: "upper" | "lower" | "fullwidth";
   suffixStyle: "之" | "-" | "號之";
   separator: "" | " " | "，";
 }
@@ -106,13 +142,22 @@ const styleArb: fc.Arbitrary<Style> = fc.record({
   numerals: numeralStyle,
   sectionNumerals: numeralStyle,
   floorAsF: fc.boolean(),
+  basementStyle: fc.constantFrom<"地下樓" | "地下層" | "B" | "BF" | "B樓">(
+    "地下樓",
+    "地下層",
+    "B",
+    "BF",
+    "B樓",
+  ),
+  basementSuffix: fc.constantFrom<"-" | "之">("-", "之"),
+  basementCase: fc.constantFrom<"upper" | "lower" | "fullwidth">("upper", "lower", "fullwidth"),
   suffixStyle: fc.constantFrom<"之" | "-" | "號之">("之", "-", "號之"),
   separator: fc.constantFrom<"" | " " | "，">("", " ", "，"),
 });
 
 /** Writes the parts back out as a Chinese address in the requested spelling. */
 function compose(parts: AddressParts, style: Style): string {
-  const n = (v: string) => renderNumber(v, style.numerals);
+  const n = (v: string) => (isLetterUnit(v) ? v : renderNumber(v, style.numerals));
   const tokens: string[] = [];
   if (parts.postalCode) tokens.push(parts.postalCode);
   tokens.push(style.tai ? (parts.city ?? "").replace(/臺/g, "台") : (parts.city ?? ""));
@@ -131,18 +176,40 @@ function compose(parts: AddressParts, style: Style): string {
     else tokens.push(`${n(parts.number)}號之${n(suffix)}`);
   }
   if (parts.floor) {
-    const suffix =
-      parts.floorSuffix === undefined
-        ? ""
-        : style.floorAsF
-          ? `-${n(parts.floorSuffix)}`
-          : `之${n(parts.floorSuffix)}`;
-    tokens.push(style.floorAsF ? `${parts.floor}F${suffix}` : `${n(parts.floor)}樓${suffix}`);
+    const basementLevel = /^B(\d+)$/.exec(parts.floor)?.[1];
+    if (basementLevel !== undefined) {
+      // `地下二樓之3` takes the Chinese numeral; `B2-3` and `B2之3` are both written.
+      const suffix =
+        parts.floorSuffix === undefined
+          ? ""
+          : style.basementStyle === "地下樓"
+            ? `之${n(parts.floorSuffix)}`
+            : `${style.basementSuffix}${n(parts.floorSuffix)}`;
+      // `B` is written upper-case, lower-case and full-width in the wild.
+      const b =
+        style.basementCase === "lower" ? "b" : style.basementCase === "fullwidth" ? "Ｂ" : "B";
+      const level = style.basementCase === "fullwidth" ? toFullWidth(basementLevel) : basementLevel;
+      if (style.basementStyle === "地下樓") tokens.push(`地下${n(basementLevel)}樓${suffix}`);
+      else if (style.basementStyle === "地下層") tokens.push(`地下${n(basementLevel)}層${suffix}`);
+      else if (style.basementStyle === "B") tokens.push(`${b}${level}${suffix}`);
+      else if (style.basementStyle === "BF") tokens.push(`${b}${level}F${suffix}`);
+      else tokens.push(`${b}${level}樓${suffix}`);
+    } else {
+      const suffix =
+        parts.floorSuffix === undefined
+          ? ""
+          : style.floorAsF
+            ? `-${n(parts.floorSuffix)}`
+            : `之${n(parts.floorSuffix)}`;
+      tokens.push(style.floorAsF ? `${parts.floor}F${suffix}` : `${n(parts.floor)}樓${suffix}`);
+    }
   }
   if (parts.room) tokens.push(`${n(parts.room)}室`);
   // `1樓之1` directly followed by `1室` is ambiguous in Chinese too; a writer
   // would separate two adjacent numerals, so the generator always does.
-  const NUMERAL = /[0-9０-９〇一二三四五六七八九十百千]/;
+  // A letter is as ambiguous against a preceding numeral as another numeral is
+  // (`B2` + `A室`), so it forces the same separation a writer would use.
+  const NUMERAL = /[0-9０-９A-Za-z〇一二三四五六七八九十百千]/;
   let out = "";
   for (const token of tokens) {
     if (out.length > 0) {

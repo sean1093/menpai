@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AREAS } from "../src/data/places.js";
 import { parse } from "../src/index.js";
 import type { AddressParts, ParseWarningCode } from "../src/types.js";
 
@@ -18,6 +19,15 @@ const base: AddressParts = {
   number: "1",
   floor: "3",
   floorSuffix: "2",
+};
+
+/** Everything above the floor for the basement cases below. */
+const basement: AddressParts = {
+  city: "臺北市",
+  area: "中正區",
+  road: "重慶南路",
+  section: "1",
+  number: "122",
 };
 
 const cases: Case[] = [
@@ -228,6 +238,172 @@ const cases: Case[] = [
     warnings: ["unparsed-remainder"],
     unparsed: "市政大樓",
   },
+  {
+    name: "地下N樓 basement",
+    input: "臺北市中正區重慶南路一段122號地下2樓",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "地下 with a Chinese numeral",
+    input: "臺北市中正區重慶南路一段122號地下二樓",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "BN basement",
+    input: "臺北市中正區重慶南路一段122號B2",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "BNF basement",
+    input: "臺北市中正區重慶南路一段122號B2F",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "lower-case bN basement",
+    input: "臺北市中正區重慶南路一段122號b2",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "B2樓 basement",
+    input: "臺北市中正區重慶南路一段122號B2樓",
+    parts: { ...basement, floor: "B2" },
+  },
+  {
+    name: "basement with a floor suffix",
+    input: "臺北市中正區重慶南路一段122號地下2樓之3",
+    parts: { ...basement, floor: "B2", floorSuffix: "3" },
+  },
+  {
+    name: "basement with a hyphen suffix",
+    input: "臺北市中正區重慶南路一段122號B2-3",
+    parts: { ...basement, floor: "B2", floorSuffix: "3" },
+  },
+  {
+    name: "basement then room",
+    input: "臺北市中正區重慶南路一段122號地下2樓 5室",
+    parts: { ...basement, floor: "B2", room: "5" },
+  },
+  {
+    name: "地下N層 basement",
+    input: "臺北市中正區重慶南路一段122號地下一層",
+    parts: { ...basement, floor: "B1" },
+  },
+  {
+    name: "地下N層 keeps the room",
+    input: "臺北市中正區重慶南路一段122號地下二層5室",
+    parts: { ...basement, floor: "B2", room: "5" },
+  },
+  {
+    name: "bare B before a separated room",
+    input: "臺北市中正區重慶南路一段122號B2 5室",
+    parts: { ...basement, floor: "B2", room: "5" },
+  },
+  {
+    name: "full-width Ｂ１ basement",
+    input: "臺北市中正區重慶南路一段122號Ｂ１",
+    parts: { ...basement, floor: "B1" },
+  },
+  {
+    name: "lettered room",
+    input: "臺北市中正區重慶南路一段122號3樓A室",
+    parts: { ...basement, floor: "3", room: "A" },
+  },
+  {
+    name: "lettered room is upper-cased",
+    input: "臺北市中正區重慶南路一段122號3樓a室",
+    parts: { ...basement, floor: "3", room: "A" },
+  },
+  {
+    name: "letter-and-digit room",
+    input: "臺北市中正區重慶南路一段122號A1室",
+    parts: { ...basement, room: "A1" },
+  },
+  {
+    name: "full-width lettered room",
+    input: "臺北市中正區重慶南路一段122號Ａ１室",
+    parts: { ...basement, room: "A1" },
+  },
+  {
+    name: "lettered floor suffix",
+    input: "臺北市中正區重慶南路一段122號3樓之A",
+    parts: { ...basement, floor: "3", floorSuffix: "A" },
+  },
+  {
+    name: "lettered floor suffix after 3F-",
+    input: "臺北市中正區重慶南路一段122號3F-A",
+    parts: { ...basement, floor: "3", floorSuffix: "A" },
+  },
+  {
+    // Not a basement: `B25室` is unit B25. Before lettered units existed this
+    // stayed in `unparsed`; reading it as a *floor* would still be wrong.
+    name: "B25室 is room B25, not floor B25",
+    input: "臺北市中正區重慶南路一段122號B25室",
+    parts: { ...basement, room: "B25" },
+  },
+  {
+    // A block marker after the letter means it was never a unit: the floor is
+    // still read, but `之B棟` is reported whole rather than half-consumed.
+    name: "block marker after a lettered suffix is refused",
+    input: "臺北市中正區重慶南路一段122號3樓之B棟",
+    parts: { ...basement, floor: "3" },
+    warnings: ["unparsed-remainder"],
+    unparsed: "之B棟",
+  },
+  {
+    name: "block marker 座 after a lettered suffix is refused",
+    input: "臺北市中正區重慶南路一段122號3樓之B座",
+    parts: { ...basement, floor: "3" },
+    warnings: ["unparsed-remainder"],
+    unparsed: "之B座",
+  },
+  {
+    name: "bare basement with a lettered suffix",
+    input: "臺北市中正區重慶南路一段122號B1-A",
+    parts: { ...basement, floor: "B1", floorSuffix: "A" },
+  },
+  {
+    name: "bare basement before a lettered room",
+    input: "臺北市中正區重慶南路一段122號B2 A室",
+    parts: { ...basement, floor: "B2", room: "A" },
+  },
+  {
+    name: "地下道 is not a basement floor",
+    input: "臺北市信義區市府路1號地下道",
+    parts: { city: "臺北市", area: "信義區", road: "市府路", number: "1" },
+    warnings: ["unparsed-remainder"],
+    unparsed: "地下道",
+  },
+  // A bare `B<digit>` is also how a building labels a block. Claiming a basement
+  // there would invent a floor *and* discard the real one, which is worse than
+  // admitting we do not know — so each of these stays whole in `unparsed`.
+  ...(
+    [
+      "地下室",
+      "地下停車場",
+      "B1棟5樓",
+      "B1座10樓",
+      "B1館3樓",
+      "B1區",
+      "B2號",
+      "B1號5樓",
+      "b2c咖啡",
+      "B2 Building",
+      "B2大樓",
+      "B棟5樓",
+      // Two letters or three digits is a building name, not a unit.
+      "AB室",
+      "A123室",
+      "會議室",
+      // No separator: could be block B2 room A, or room B2A. Do not guess.
+      "B2A室",
+    ] as const
+  ).map((tail) => ({
+    name: `"${tail}" is not a basement floor`,
+    input: `臺北市中正區重慶南路一段122號${tail}`,
+    parts: basement,
+    warnings: ["unparsed-remainder"] as ParseWarningCode[],
+    unparsed: tail,
+  })),
 ];
 
 describe("parse", () => {
@@ -241,6 +417,82 @@ describe("parse", () => {
       expect(result.unparsed).toBe(c.unparsed ?? "");
     });
   }
+
+  it("names the candidate cities when a district is ambiguous", () => {
+    const result = parse("大安區中山路1號");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("area-ambiguous");
+    expect(result.error.candidates).toEqual(["臺北市", "臺中市"]);
+    for (const city of result.error.candidates ?? []) {
+      expect(result.error.message).toContain(city);
+    }
+  });
+
+  it("keeps the candidates when a postal code matches none of them", () => {
+    // A code that belongs to no candidate says nothing about which city was
+    // meant; the old behaviour reported "exists in more than one city ()".
+    const result = parse("999大安區中山路1號");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.candidates).toEqual(["臺北市", "臺中市"]);
+    expect(result.error.message).not.toContain("()");
+  });
+
+  it("every candidate it offers actually resolves the ambiguity", () => {
+    // The contract the site's tap-to-choose buttons rely on. Asserting only
+    // `ok` and `city` is not enough: "臺北市999大安區中山路1號" is `ok` with the
+    // right city while the district, road and number are all gone.
+    const byName = new Map<string, Set<number>>();
+    for (const [cityIndex, zh] of AREAS) {
+      if (zh === "") continue;
+      if (!byName.has(zh)) byName.set(zh, new Set());
+      byName.get(zh)?.add(cityIndex);
+    }
+    const ambiguous = [...byName.entries()].filter(([, cities]) => cities.size > 1);
+    // Districts in 3+ cities (東區 is in four) are the cases most worth covering,
+    // so count exactly rather than leaving slack that could silently skip them.
+    const expected = ambiguous.reduce((n, [, cities]) => n + cities.size, 0);
+    expect(ambiguous.length).toBeGreaterThan(0);
+
+    let checked = 0;
+    for (const [zh] of ambiguous) {
+      // Both shapes the site's button produces: with and without a postal code.
+      for (const [prefix, rest] of [
+        ["", `${zh}中山路1號`],
+        ["999", `${zh}中山路1號`],
+      ] as const) {
+        const result = parse(prefix + rest);
+        expect(result.ok, prefix + rest).toBe(false);
+        if (result.ok) continue;
+        expect(result.error.code, prefix + rest).toBe("area-ambiguous");
+        const candidates = result.error.candidates ?? [];
+        expect(candidates.length, prefix + rest).toBeGreaterThan(1);
+        for (const city of candidates) {
+          // The city is inserted after any postal code, as the site does it.
+          const input = prefix + city + rest;
+          const fixed = parse(input);
+          expect(fixed.ok, input).toBe(true);
+          if (!fixed.ok) continue;
+          expect(fixed.parts.city, input).toBe(city);
+          expect(fixed.parts.area, input).toBe(zh);
+          expect(fixed.parts.road, input).toBe("中山路");
+          expect(fixed.parts.number, input).toBe("1");
+          expect(fixed.unparsed, input).toBe("");
+          if (prefix === "") checked++;
+        }
+      }
+    }
+    expect(checked).toBe(expected);
+  });
+
+  it("does not set candidates for other failures", () => {
+    const result = parse("忠孝東路四段1號");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("city-not-found");
+    expect(result.error.candidates).toBeUndefined();
+  });
 
   it("rejects empty input", () => {
     expect(parse("   ")).toEqual({

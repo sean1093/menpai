@@ -70,6 +70,19 @@ describe("format: order and abbreviations", () => {
       "12 F., No. 12, Ln. 216, Sec. 4",
     ],
     ["full-width inputs", { number: "１２", floor: "３" }, "3 F., No. 12"],
+    ["地下 → B1 F.", { floor: "B1" }, "B1 F."],
+    ["地下 with suffix", { floor: "B1", floorSuffix: "2" }, "B1 F.-2"],
+    ["lower-case b is normalised", { floor: "b1" }, "B1 F."],
+    ["raw 地下2 is normalised", { floor: "地下2" }, "B2 F."],
+    ["raw 地下二 is normalised", { floor: "地下二" }, "B2 F."],
+    // Not basement levels: pass them through rather than rewriting them to `B室` / `BF`.
+    ["地下室 is left alone", { floor: "地下室" }, "地下室 F."],
+    ["bF is left alone", { floor: "bF" }, "bF F."],
+    ["lettered room", { room: "A" }, "Rm. A"],
+    ["lettered room is upper-cased", { room: "a" }, "Rm. A"],
+    ["letter-and-digit room", { room: "A1" }, "Rm. A1"],
+    ["lettered floor suffix", { floor: "3", floorSuffix: "b" }, "3 F.-B"],
+    ["non-unit room text passes through", { room: "會議" }, "Rm. 會議"],
   ];
   for (const [name, parts, expected] of abbreviations) {
     it(name, () => {

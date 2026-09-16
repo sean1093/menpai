@@ -28,11 +28,11 @@ export interface AddressParts {
   number?: string;
   /** House number suffix (附號): the `1` in `1之1號` / `1-1號`. */
   numberSuffix?: string;
-  /** Floor (樓 / F), e.g. `"3"`. */
+  /** Floor (樓 / F), e.g. `"3"`. Basement levels carry a `B`: `"B1"` prints as `B1 F.`. */
   floor?: string;
-  /** Floor suffix (之): the `2` in `3樓之2`. */
+  /** Floor suffix (之): the `2` in `3樓之2`. May be a letter: `"B"` in `3樓之B`. */
   floorSuffix?: string;
-  /** Room (室), e.g. `"5"`. */
+  /** Room (室), e.g. `"5"`. May be a letter: `"A"`, `"A1"`. */
   room?: string;
 }
 
@@ -73,6 +73,18 @@ export interface FormatResult {
   segments: FormatSegment[];
   /** Chinese fragments that were not found in any dictionary and were rendered by a fallback (or left untranslated). */
   unresolved: string[];
+  /**
+   * Why the input could not be parsed. Set by `translate` only, and only when
+   * `english` is `""`. `format` never sets it, since it is given parts rather
+   * than text.
+   */
+  error?: ParseError;
+  /**
+   * Notes raised while parsing: renamed counties, an inferred city, a postal
+   * code that does not match the district. Set by `translate` only, and omitted
+   * when there are none. `format` never sets it.
+   */
+  warnings?: ParseWarning[];
 }
 
 export type ParseWarningCode =
@@ -92,6 +104,12 @@ export type ParseErrorCode = "empty-input" | "city-not-found" | "area-ambiguous"
 export interface ParseError {
   code: ParseErrorCode;
   message: string;
+  /**
+   * For `area-ambiguous`: the city names the district could belong to, in the
+   * official order. Structured so a caller can offer the choice instead of
+   * asking the user to parse an English sentence.
+   */
+  candidates?: string[];
 }
 
 export type ParseResult =

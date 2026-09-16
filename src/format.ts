@@ -37,6 +37,28 @@ function digits(text: string): string {
   return n === null ? t : String(n);
 }
 
+/**
+ * A unit designator: a number, or a Latin letter optionally carrying up to two
+ * digits, kept upper-case (`a` → `A`). Anything else passes through as written,
+ * so `room: "ab"` stays `ab` — only the shape `parse()` can produce is normalised.
+ */
+function unitValue(text: string): string {
+  const t = normalizeZh(text);
+  return /^[A-Za-z][0-9]{0,2}$/.test(t) ? t.toUpperCase() : digits(t);
+}
+
+/**
+ * Floor designator. Basement floors carry a `B` marker (`"B1"`, or `"地下1"` /
+ * `"b1"` when the caller hands `format()` raw input) and are emitted as `B1 F.`,
+ * matching the spacing of the above-ground `3 F.` form.
+ */
+function floorValue(text: string): string {
+  // Only rewrite when what follows the marker really is a numeral: `地下室` and
+  // `bF` are not basement levels and must pass through as the caller wrote them.
+  const basement = /^(?:地下|[Bb])([0-9〇零一二三四五六七八九十百千兩]+)$/.exec(normalizeZh(text));
+  return basement?.[1] === undefined ? digits(text) : `B${digits(basement[1])}`;
+}
+
 interface Resolved {
   en: string;
   confidence: Confidence;
@@ -137,10 +159,10 @@ export function format(parts: AddressParts, options: FormatOptions = {}): Format
 
   // ---- Small → large ------------------------------------------------------
   if (parts.room !== undefined)
-    push("room", { en: `Rm. ${digits(parts.room)}`, confidence: "exact" });
+    push("room", { en: `Rm. ${unitValue(parts.room)}`, confidence: "exact" });
   if (parts.floor !== undefined) {
-    const suffix = parts.floorSuffix === undefined ? "" : `-${digits(parts.floorSuffix)}`;
-    push("floor", { en: `${digits(parts.floor)} F.${suffix}`, confidence: "exact" });
+    const suffix = parts.floorSuffix === undefined ? "" : `-${unitValue(parts.floorSuffix)}`;
+    push("floor", { en: `${floorValue(parts.floor)} F.${suffix}`, confidence: "exact" });
   }
   if (parts.number !== undefined) {
     const suffix = parts.numberSuffix === undefined ? "" : `-${digits(parts.numberSuffix)}`;

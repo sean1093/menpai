@@ -25,6 +25,8 @@ const r = translate(order.shippingAddress);
 // r.confidence  "exact" | "inferred" | "unknown"
 // r.segments    [{ key: "road", value: "Zhongxiao E. Rd.", confidence: "exact" }, ...]
 // r.unresolved  []   — Chinese fragments that had to be guessed or were skipped
+// r.warnings    []   — notes that do not lower confidence (see §3); omitted when empty
+// r.error            — why it could not be parsed at all; only when english is ""
 ```
 
 Options: `{ romanization: "hanyu" | "tongyong" | "wade-giles", country: boolean, postalCode: 3 | 5 | 6 }`.
@@ -53,12 +55,24 @@ if (r.confidence === "inferred") return askCustomerToConfirm(r.english, r.unreso
 return askCustomerToFixInput(r.unresolved); // "unknown"
 ```
 
-`parse()` separately reports *warnings* that do not lower confidence but that
-you may want to surface: an outdated county name was mapped
+`translate()` also returns **`warnings`**: notes that do not lower confidence but
+that you may want to surface — an outdated county name was mapped
 (`桃園縣` → `桃園市`), the city was inferred from a district, or the postal
 code in the input does not match the district (`postal-code-mismatch` — the
 library keeps the customer's code and marks it `unknown` rather than
-"correcting" it).
+"correcting" it). The field is omitted when there is nothing to report.
+
+When the input cannot be parsed at all, `english` is `""` and **`error`** says
+why — `city-not-found`, `area-ambiguous` or `empty-input`. That is what lets you
+ask for the missing piece rather than just saying "invalid address". Note that
+`error` is the only reliable failure signal from `translate()`; `format()` also
+returns `english: ""` for empty parts and never sets `error`.
+
+One overlap to know about: trailing text that could not be interpreted appears
+**both** in `unresolved` and as an `unparsed-remainder` warning. `unresolved` is
+the authoritative list to show a customer — it is the union of "guessed" and
+"skipped" fragments. The warning exists so you can tell the two apart when you
+want to word the message differently.
 
 ## 4. Store both
 
@@ -102,8 +116,19 @@ node examples/http-server.mjs                      # http://localhost:8787/trans
 npx wrangler deploy examples/cloudflare-worker.mjs --name menpai-api --compatibility-date 2024-09-01
 ```
 
-## 6. Things menpai will not do for you
+## 6. No JavaScript? Use the CLI
+
+For a one-off batch — a CSV column of Chinese addresses to turn into English — you do not need a service at all:
+
+```sh
+npx menpai < addresses.txt > english.txt || echo "some rows need checking"
+npx menpai --json < addresses.txt > out.jsonl   # confidence and segments per row
+```
+
+Exit status `0` means every row came back `exact`; `1` means at least one needs a human. Notes go to stderr, so `> english.txt` stays clean.
+
+## 7. Things menpai will not do for you
 
 - Validate that a house number exists, or look up 3+2 / 3+3 postal codes. Use Chunghwa Post's own services for that; menpai passes a 3+3 code through if the customer typed it.
-- Translate building names, floors written as `地下一樓`, or free-text delivery notes. They come back in `unresolved` so you can show them, not lose them.
+- Translate building names, block labels (`B1棟`), or free-text delivery notes. They come back in `unresolved` so you can show them, not lose them. (Basement *floors* — `地下一樓`, `B1` — are translated, to `B1 F.`)
 - Guarantee the English for names outside the official lists. That is what `inferred` means.

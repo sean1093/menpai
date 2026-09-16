@@ -718,5 +718,49 @@
     "expected": null,
     "romanization": "hanyu",
     "note": "village + road; official web tool omits 村"
+  },
+  {
+    "input": "臺北市中正區重慶南路一段122號地下一樓",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "basement floor written 地下一樓"
+  },
+  {
+    "input": "臺北市中正區重慶南路一段122號B1",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "basement floor written B1"
+  },
+  {
+    "input": "臺北市中正區重慶南路一段122號地下二樓之3",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "basement floor with a 之 suffix"
+  },
+  {
+    "input": "臺北市大安區忠孝東路四段1號3樓A室",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "lettered room"
+  },
+  {
+    "input": "臺北市大安區忠孝東路四段1號3樓之B",
+    "expected": null,
+    "romanization": "hanyu",
+    "note": "lettered floor suffix"
+  },
+  {
+    "input": "新竹市東區竹科路1號",
+    "expected": null,
+    "romanization": "hanyu",
+    "confidence": "inferred",
+    "note": "road not in the official list; romanized by rule — the official tool's answer is worth pinning"
+  },
+  {
+    "input": "臺中市北屯區廍子路100號",
+    "expected": null,
+    "romanization": "hanyu",
+    "confidence": "unknown",
+    "note": "廍 has no reading in the char table; passed through — see what the official tool does"
   }
 ]
