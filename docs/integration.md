@@ -116,7 +116,18 @@ node examples/http-server.mjs                      # http://localhost:8787/trans
 npx wrangler deploy examples/cloudflare-worker.mjs --name menpai-api --compatibility-date 2024-09-01
 ```
 
-## 6. Things menpai will not do for you
+## 6. No JavaScript? Use the CLI
+
+For a one-off batch — a CSV column of Chinese addresses to turn into English — you do not need a service at all:
+
+```sh
+npx menpai < addresses.txt > english.txt || echo "some rows need checking"
+npx menpai --json < addresses.txt > out.jsonl   # confidence and segments per row
+```
+
+Exit status `0` means every row came back `exact`; `1` means at least one needs a human. Notes go to stderr, so `> english.txt` stays clean.
+
+## 7. Things menpai will not do for you
 
 - Validate that a house number exists, or look up 3+2 / 3+3 postal codes. Use Chunghwa Post's own services for that; menpai passes a 3+3 code through if the customer typed it.
 - Translate building names, block labels (`B1棟`), or free-text delivery notes. They come back in `unresolved` so you can show them, not lose them. (Basement *floors* — `地下一樓`, `B1` — are translated, to `B1 F.`)
