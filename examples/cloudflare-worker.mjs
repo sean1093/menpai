@@ -4,7 +4,7 @@
 //   npm install menpai
 //   npx wrangler deploy cloudflare-worker.mjs --name menpai-api --compatibility-date 2024-09-01
 //   curl "https://menpai-api.<you>.workers.dev/translate?q=台北市大安區忠孝東路四段1號3樓之2"
-import { format, parse } from "menpai";
+import { translate } from "menpai";
 
 const ROMANIZATIONS = new Set(["hanyu", "tongyong", "wade-giles"]);
 const HEADERS = {
@@ -24,20 +24,12 @@ export default {
     }
     const q = url.searchParams.get("q") ?? "";
     const r = url.searchParams.get("romanization") ?? "hanyu";
-    const parsed = parse(q);
-    if (!parsed.ok)
-      return Response.json({ error: parsed.error }, { status: 422, headers: HEADERS });
-    const result = format(parsed.parts, {
+    const result = translate(q, {
       romanization: ROMANIZATIONS.has(r) ? r : "hanyu",
       country: url.searchParams.get("country") !== "false",
     });
-    if (parsed.unparsed) {
-      result.unresolved.push(parsed.unparsed);
-      result.confidence = "unknown";
-    }
-    return Response.json(
-      { ...result, parts: parsed.parts, warnings: parsed.warnings },
-      { headers: HEADERS },
-    );
+    if (result.error)
+      return Response.json({ error: result.error }, { status: 422, headers: HEADERS });
+    return Response.json(result, { headers: HEADERS });
   },
 };

@@ -25,6 +25,8 @@ const r = translate(order.shippingAddress);
 // r.confidence  "exact" | "inferred" | "unknown"
 // r.segments    [{ key: "road", value: "Zhongxiao E. Rd.", confidence: "exact" }, ...]
 // r.unresolved  []   — Chinese fragments that had to be guessed or were skipped
+// r.warnings    []   — notes that do not lower confidence (see §3); omitted when empty
+// r.error            — why it could not be parsed at all; only when english is ""
 ```
 
 Options: `{ romanization: "hanyu" | "tongyong" | "wade-giles", country: boolean, postalCode: 3 | 5 | 6 }`.
@@ -53,12 +55,24 @@ if (r.confidence === "inferred") return askCustomerToConfirm(r.english, r.unreso
 return askCustomerToFixInput(r.unresolved); // "unknown"
 ```
 
-`parse()` separately reports *warnings* that do not lower confidence but that
-you may want to surface: an outdated county name was mapped
+`translate()` also returns **`warnings`**: notes that do not lower confidence but
+that you may want to surface — an outdated county name was mapped
 (`桃園縣` → `桃園市`), the city was inferred from a district, or the postal
 code in the input does not match the district (`postal-code-mismatch` — the
 library keeps the customer's code and marks it `unknown` rather than
-"correcting" it).
+"correcting" it). The field is omitted when there is nothing to report.
+
+When the input cannot be parsed at all, `english` is `""` and **`error`** says
+why — `city-not-found`, `area-ambiguous` or `empty-input`. That is what lets you
+ask for the missing piece rather than just saying "invalid address". Note that
+`error` is the only reliable failure signal from `translate()`; `format()` also
+returns `english: ""` for empty parts and never sets `error`.
+
+One overlap to know about: trailing text that could not be interpreted appears
+**both** in `unresolved` and as an `unparsed-remainder` warning. `unresolved` is
+the authoritative list to show a customer — it is the union of "guessed" and
+"skipped" fragments. The warning exists so you can tell the two apart when you
+want to word the message differently.
 
 ## 4. Store both
 
