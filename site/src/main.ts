@@ -244,6 +244,19 @@ copyEl.addEventListener("click", async () => {
   }, 2000);
 });
 
+/*
+ * Offline support. Everything this app needs is already in the bundle, and the
+ * moments it is most wanted — abroad, at a post office counter, in an airport
+ * before buying a data plan — are exactly the ones with no network. The worker
+ * only exists in a production build; `vite dev` serves no sw.js.
+ */
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    // A failed registration must never break the page: it still works online.
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {});
+  });
+}
+
 // Deep link: ?q=<address>&r=hanyu|tongyong|wade-giles — lets other sites hand an address over.
 const params = new URLSearchParams(location.search);
 const q = params.get("q");
