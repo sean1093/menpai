@@ -168,7 +168,21 @@ Romanization applies to names that are not conventional: `hanyu` (default, the o
 
 - **Official data replay** — every one of the 30,030 road rows, 8,369 village / named-lane rows and 371 district rows of the vendored Chunghwa Post files is pushed through `format()` and must come back byte-for-byte (`test/data.test.ts`). The fallback rules are pinned to the official spellings.
 - **Property-based** — random combinations of real districts, roads, villages and numbers are written out in random spellings (臺/台, Chinese / full-width numerals, `3F`, `1-1號`, stray spaces and commas), parsed back, and must format identically (`fast-check`, `test/roundtrip.property.test.ts`).
-- **Golden cases against the official web tool** — `test/fixtures/golden.json` holds 120 addresses (every city, multi-reading roads, sections, lanes, alleys, floors, suffixes, same-named districts, Tongyong). Their `expected` values are filled in by hand from the Chunghwa Post translation tool; cases still marked `null` are reported as *todo* and assert nothing. **Status: pending — no golden case has been verified yet.** This README will state the pass count once they are.
+- **Golden cases against the official web tool** — `test/fixtures/golden.json` holds 123 addresses (every city, multi-reading roads, sections, lanes, alleys, floors, suffixes, same-named districts, Tongyong). Their `expected` values are filled in by hand from the Chunghwa Post translation tool, which a human has to operate. **Status: 0 of 123 verified.** The test run states the count, so it is never in doubt:
+
+  ```
+  ✓ golden: official Chunghwa Post output > 0/123 cases verified against the official tool (0%)
+  ```
+
+  A case whose `expected` is still `null` cannot assert the official spelling, but it is not inert: **every** case, verified or not, must still parse, produce a non-empty address, and hold its confidence, so a fixture that regresses fails CI today. On top of that the file is guarded — it must cover every city, hold no duplicates, and never drop below `VERIFIED_FLOOR` in `test/golden.test.ts`, so a verified case cannot be quietly reset to `null`.
+
+### Contributing a verified case
+
+1. Put the Chinese address into the [official translation tool](https://www.post.gov.tw/post/internet/Postal/index.jsp?ID=207).
+2. Copy its output verbatim into `expected` for the matching case in `test/fixtures/golden.json`, and add `verifiedAt` (ISO date) and `source`. Both are required — when the data edition changes (currently 113/01) they are what tells you which cases need re-checking.
+3. Raise `VERIFIED_FLOOR` in `test/golden.test.ts` by one. Never lower it.
+
+If the library disagrees with the tool, that is a bug worth an issue rather than an `expected` bent to fit.
 
 ## Using it in a checkout, CRM, or label printer
 
