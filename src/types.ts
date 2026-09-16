@@ -73,6 +73,18 @@ export interface FormatResult {
   segments: FormatSegment[];
   /** Chinese fragments that were not found in any dictionary and were rendered by a fallback (or left untranslated). */
   unresolved: string[];
+  /**
+   * Why the input could not be parsed. Set by `translate` only, and only when
+   * `english` is `""`. `format` never sets it, since it is given parts rather
+   * than text.
+   */
+  error?: ParseError;
+  /**
+   * Notes raised while parsing: renamed counties, an inferred city, a postal
+   * code that does not match the district. Set by `translate` only, and omitted
+   * when there are none. `format` never sets it.
+   */
+  warnings?: ParseWarning[];
 }
 
 export type ParseWarningCode =

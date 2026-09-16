@@ -46,7 +46,26 @@ Three functions. Nothing else is exported besides their types.
 
 ### `translate(input, options?) → FormatResult`
 
-`parse` followed by `format`. If the input cannot be parsed, `english` is `""`, `confidence` is `"unknown"`, and `unresolved` holds the whole input. If part of the input could not be interpreted (a building name, a note), it is appended to `unresolved` and `confidence` drops to `"unknown"` — a confident answer is never returned for text that was ignored.
+`parse` followed by `format`. If part of the input could not be interpreted (a building name, a note), it is appended to `unresolved` and `confidence` drops to `"unknown"` — a confident answer is never returned for text that was ignored.
+
+If the input cannot be parsed at all, `english` is `""`, `confidence` is `"unknown"`, `unresolved` holds the whole input, and **`error` says why**:
+
+```ts
+translate("忠孝東路四段1號").error;
+// { code: "city-not-found", message: "No city or county found at the start of the address." }
+
+translate("大安區中山路1號").error;
+// { code: "area-ambiguous", message: '"大安區" exists in more than one city (臺北市, 臺中市); …' }
+```
+
+Anything `parse` wanted to warn about comes through in **`warnings`**, so you never have to call `parse` separately just to find out what happened:
+
+```ts
+translate("桃園縣中壢市中央西路二段30號").warnings;
+// [{ code: "city-alias", … }, { code: "area-alias", … }]  — 桃園縣 → 桃園市, 中壢市 → 中壢區
+```
+
+Both are omitted when there is nothing to report, and `format` never sets either — it is given parts, not text.
 
 ### `parse(input) → ParseResult`
 
@@ -120,6 +139,8 @@ interface FormatResult {
   confidence: Confidence;  // the lowest confidence of all segments
   segments: Array<{ key: keyof AddressParts; value: string; confidence: Confidence }>;
   unresolved: string[];    // Chinese fragments rendered by a fallback (or left as-is)
+  error?: ParseError;      // translate() only, and only when english is ""
+  warnings?: ParseWarning[]; // translate() only, omitted when empty
 }
 ```
 
