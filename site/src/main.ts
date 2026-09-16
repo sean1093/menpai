@@ -112,6 +112,10 @@ function renderSegments(result: FormatResult): void {
     const dot = document.createElement("td");
     const mark = document.createElement("span");
     mark.className = `dot ${segment.confidence}`;
+    // A bare <span> is a generic element, and ARIA ignores aria-label on those —
+    // without a role the confidence marks are invisible to a screen reader, and
+    // shape is then the only non-colour channel.
+    mark.setAttribute("role", "img");
     mark.setAttribute("aria-label", STATUS[segment.confidence]);
     dot.append(mark);
     tr.append(label, value, dot);

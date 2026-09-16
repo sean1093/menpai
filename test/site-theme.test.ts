@@ -26,7 +26,14 @@ function tokens(selector: string): Record<string, string> {
 const light = tokens(":root {");
 const dark = tokens("@media (prefers-color-scheme: dark) {\n  :root {");
 
+const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+
 function luminance(hex: string): number {
+  // A custom property accepts any token sequence, so a typo like `#86c49`
+  // survives until var() substitution and then silently unsets the property —
+  // the element loses its colour in the browser. Catch it here instead of
+  // scoring five digits as a colour and reporting a comfortable pass.
+  expect(hex, `${hex} is not a 3- or 6-digit hex colour`).toMatch(HEX);
   const h = hex.replace("#", "");
   const full = h.length === 3 ? [...h].map((c) => c + c).join("") : h;
   const channels = [0, 2, 4].map((i) => Number.parseInt(full.slice(i, i + 2), 16) / 255);
@@ -86,12 +93,31 @@ describe("site theme", () => {
     expect(colours.filter((k) => dark[k] === undefined)).toEqual([]);
   });
 
+  it("gives the dark input well its own surface", () => {
+    // Near-black surfaces all score ~1.1:1 by the WCAG formula, so a ratio says
+    // nothing useful here. What matters is that the well is a distinct, darker
+    // surface than the card rather than sitting on top of it.
+    expect(luminance(dark.well ?? ""), "--well must be darker than --card").toBeLessThan(
+      luminance(dark.card ?? ""),
+    );
+    expect(dark.well).not.toBe(dark.card);
+    expect(dark.well).not.toBe(dark.paper);
+  });
+
   it("separates the three confidence levels by more than colour", () => {
     // A red/green-blind reader, or a greyscale screenshot, must still tell them apart.
     expect(css).toMatch(/\.english \.seg-inferred \{[^}]*underline solid/);
     expect(css).toMatch(/\.english \.seg-unknown \{[^}]*underline wavy/);
     expect(css).toMatch(/\.dot\.inferred \{[^}]*background: transparent/);
     expect(css).toMatch(/\.dot\.unknown \{[^}]*rotate\(45deg\)/);
+  });
+
+  it("declares color-scheme, so UA-painted chrome follows the page", () => {
+    // Scrollbars, form-control internals and the selection highlight are painted
+    // by the browser, not by these rules. `.english` has user-select: all — the
+    // main copy affordance on mobile — so a light selection over a dark card is
+    // the visible failure.
+    expect(css).toMatch(/color-scheme:\s*light dark/);
   });
 
   it("ships a theme-color for each scheme, matching the palette", () => {

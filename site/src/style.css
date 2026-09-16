@@ -13,6 +13,9 @@
   --bad: #a83a3a;
   --bad-bg: #f9ecec;
   --bad-line: #eacaca;
+  /* The textarea's surface. Same as --paper in light; its own in dark, where
+     --paper would sit almost on top of --card. */
+  --well: #f4f2ed;
   /* Text and knobs that sit on top of --ink. */
   --on-ink: #ffffff;
   --ink-hover: #1d1c1b;
@@ -28,6 +31,16 @@
 
 * {
   box-sizing: border-box;
+}
+
+:root {
+  /*
+   * Without this the UA paints scrollbars, form-control internals and the
+   * selection highlight in light mode over a dark page. `.english` is
+   * user-select: all — the copy affordance on mobile — so the selection is the
+   * one people would actually notice.
+   */
+  color-scheme: light dark;
 }
 
 html {
@@ -116,7 +129,7 @@ textarea {
   font-size: 20px;
   line-height: 1.5;
   color: var(--ink);
-  background: var(--paper);
+  background: var(--well);
   border: 1.5px solid var(--line-strong);
   border-radius: var(--radius-sm);
   resize: vertical;
@@ -385,7 +398,7 @@ textarea:focus {
 
 .english .seg-unknown {
   text-decoration: underline wavy var(--bad);
-  text-decoration-thickness: 2px;
+  text-decoration-thickness: 3px;
   text-underline-offset: 4px;
 }
 
@@ -575,13 +588,10 @@ footer p {
     --bad: #f0928f;
     --bad-bg: #321e1e;
     --bad-line: #5e3838;
+    --well: #100f0e;
     --on-ink: #161513;
-    --ink-hover: #ffffff;
+    /* Not pure white: brighter than --ink on a near-black page haloes. */
+    --ink-hover: #f6f3ee;
     --ring-rgb: 236, 232, 224;
-  }
-
-  /* The paper-coloured textarea would vanish into the card; lift it instead. */
-  textarea {
-    background: #100f0e;
   }
 }
