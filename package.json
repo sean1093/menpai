@@ -27,6 +27,9 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "menpai": "./dist/bin.js"
+  },
   "exports": {
     ".": {
       "import": {
@@ -52,7 +55,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && tsup --config tsup.cli.config.ts && node scripts/check-dist.mjs",
     "build:data": "tsx scripts/build-data.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p site",
     "lint": "biome check .",

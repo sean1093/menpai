@@ -186,6 +186,25 @@ If the address is one menpai cannot resolve confidently — a road outside the o
 
 If the library disagrees with the tool, that is a bug worth an issue rather than an `expected` bent to fit.
 
+## Command line
+
+```sh
+npx menpai "台北市大安區忠孝東路四段1號3樓之2"
+# 3 F.-2, No. 1, Sec. 4, Zhongxiao E. Rd., Da'an Dist., Taipei City 106, Taiwan (R.O.C.)
+
+# one address per line, for a spreadsheet column
+menpai < addresses.txt > english.txt || echo "some need checking"
+
+# machine-readable: one JSON object per line
+menpai --json "台北市信義區不存在的路99號"
+```
+
+Addresses go to stdout, notes and warnings to stderr, so a pipe stays clean. The exit status is the batch verdict: `0` when every address came back `exact`, `1` when at least one is `inferred` or `unknown` and wants a human, `2` for a usage error.
+
+`--romanization <hanyu|tongyong|wade-giles>`, `--postal-code <3|5|6>` (trims; it never adds digits the input did not carry), `--no-country`, `--json`, `--quiet`, `--help`, `--version`. Run `menpai --help` for the full text.
+
+Output is one line per non-blank input line — a row that fails still emits an empty line, so line *n* out stays line *n* in.
+
 ## Using it in a checkout, CRM, or label printer
 
 See [`docs/integration.md`](docs/integration.md): where to run it, what to do with each `confidence` level, and a ~40-line zero-dependency HTTP endpoint for non-JavaScript stacks ([`examples/http-server.mjs`](examples/http-server.mjs), [`examples/cloudflare-worker.mjs`](examples/cloudflare-worker.mjs)).
