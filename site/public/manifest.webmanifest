@@ -1,0 +1,17 @@
+{
+  "name": "門牌 menpai — 中文地址英譯",
+  "short_name": "門牌",
+  "description": "把台灣中文地址轉成中華郵政英文格式。離線可用，不上傳任何資料。",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "zh-Hant-TW",
+  "background_color": "#f4f2ed",
+  "theme_color": "#f4f2ed",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
