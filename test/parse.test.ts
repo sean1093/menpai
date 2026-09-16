@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AREAS } from "../src/data/places.js";
 import { parse } from "../src/index.js";
 import type { AddressParts, ParseWarningCode } from "../src/types.js";
 
@@ -416,6 +417,64 @@ describe("parse", () => {
       expect(result.unparsed).toBe(c.unparsed ?? "");
     });
   }
+
+  it("names the candidate cities when a district is ambiguous", () => {
+    const result = parse("大安區中山路1號");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("area-ambiguous");
+    expect(result.error.candidates).toEqual(["臺北市", "臺中市"]);
+    for (const city of result.error.candidates ?? []) {
+      expect(result.error.message).toContain(city);
+    }
+  });
+
+  it("keeps the candidates when a postal code matches none of them", () => {
+    // A code that belongs to no candidate says nothing about which city was
+    // meant; the old behaviour reported "exists in more than one city ()".
+    const result = parse("999大安區中山路1號");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.candidates).toEqual(["臺北市", "臺中市"]);
+    expect(result.error.message).not.toContain("()");
+  });
+
+  it("every candidate it offers actually resolves the ambiguity", () => {
+    // The contract the site's tap-to-choose buttons rely on: prepending any
+    // offered city must parse, and must yield that city.
+    const byName = new Map<string, Set<number>>();
+    for (const [cityIndex, zh] of AREAS) {
+      if (zh === "") continue;
+      if (!byName.has(zh)) byName.set(zh, new Set());
+      byName.get(zh)?.add(cityIndex);
+    }
+    const ambiguous = [...byName.entries()].filter(([, cities]) => cities.size > 1);
+    expect(ambiguous.length).toBeGreaterThan(0);
+
+    let checked = 0;
+    for (const [zh] of ambiguous) {
+      const input = `${zh}中山路1號`;
+      const result = parse(input);
+      if (result.ok || result.error.code !== "area-ambiguous") continue;
+      const candidates = result.error.candidates ?? [];
+      expect(candidates.length, input).toBeGreaterThan(1);
+      for (const city of candidates) {
+        const fixed = parse(city + input);
+        expect(fixed.ok, city + input).toBe(true);
+        if (fixed.ok) expect(fixed.parts.city, city + input).toBe(city);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(10);
+  });
+
+  it("does not set candidates for other failures", () => {
+    const result = parse("忠孝東路四段1號");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("city-not-found");
+    expect(result.error.candidates).toBeUndefined();
+  });
 
   it("rejects empty input", () => {
     expect(parse("   ")).toEqual({

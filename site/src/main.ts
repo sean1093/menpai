@@ -2,10 +2,9 @@ import {
   type AddressParts,
   type Confidence,
   type FormatResult,
-  format,
   type ParseWarning,
-  parse,
   type Romanization,
+  translate,
 } from "menpai";
 
 function $<T extends HTMLElement>(id: string): T {
@@ -26,6 +25,7 @@ const issuesEl = $<HTMLUListElement>("issues");
 const segmentsEl = $<HTMLTableSectionElement>("segments");
 const errorEl = $<HTMLElement>("error");
 const errorTextEl = $<HTMLParagraphElement>("error-text");
+const errorChoicesEl = $<HTMLDivElement>("error-choices");
 
 const STATUS: Record<Confidence, string> = {
   exact: "已對照中華郵政官方資料",
@@ -130,9 +130,27 @@ function addIssue(text: string, level: "info" | "warn" | "bad"): void {
   issuesEl.append(li);
 }
 
-function showError(text: string): void {
+/**
+ * `choices` are city names the district could belong to. Offering them as
+ * buttons turns a dead end into one tap — on a phone, retyping a city name is
+ * the difference between finishing and giving up.
+ */
+function showError(text: string, choices: string[] = []): void {
   resultEl.hidden = true;
   errorTextEl.textContent = text;
+  errorChoicesEl.replaceChildren();
+  for (const city of choices) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = city;
+    button.addEventListener("click", () => {
+      addressEl.value = city + addressEl.value.trim();
+      run();
+      addressEl.focus();
+    });
+    errorChoicesEl.append(button);
+  }
+  errorChoicesEl.hidden = choices.length === 0;
   errorEl.hidden = false;
 }
 
@@ -144,30 +162,44 @@ function run(): void {
     errorEl.hidden = true;
     return;
   }
-  const parsed = parse(input);
-  if (!parsed.ok) {
-    if (parsed.error.code === "area-ambiguous") {
-      showError("這個鄉鎮市區在好幾個縣市都有，請在最前面加上縣市名稱或郵遞區號。");
+  const result = translate(input, {
+    romanization: romanization(),
+    country: countryEl.checked,
+  });
+  if (result.error) {
+    if (result.error.code === "area-ambiguous") {
+      const cities = result.error.candidates ?? [];
+      showError(
+        cities.length > 0
+          ? "這個鄉鎮市區在好幾個縣市都有，請選一個："
+          : "這個鄉鎮市區在好幾個縣市都有，請在最前面加上縣市名稱或郵遞區號。",
+        cities,
+      );
     } else {
       showError("找不到縣市。請從縣市開始輸入，例如「臺北市大安區忠孝東路四段1號」。");
     }
     return;
   }
-  const result = format(parsed.parts, { romanization: romanization(), country: countryEl.checked });
-  let confidence = result.confidence;
-  if (parsed.unparsed.length > 0) confidence = "unknown";
 
-  statusEl.className = `status ${confidence}`;
-  statusEl.textContent = STATUS[confidence];
+  statusEl.className = `status ${result.confidence}`;
+  statusEl.textContent = STATUS[result.confidence];
   renderEnglish(result);
   renderSegments(result);
 
   issuesEl.replaceChildren();
-  for (const w of parsed.warnings) {
+  const warnings = result.warnings ?? [];
+  for (const w of warnings) {
     const { text, level } = describeWarning(w);
     addIssue(text, level);
   }
+  // A fragment that could not be interpreted shows up in `unresolved` *and* as an
+  // unparsed-remainder warning. Saying "we guessed the pinyin" about text that was
+  // not translated at all contradicts the warning right above it, so skip those.
+  const skipped = new Set(
+    warnings.flatMap((w) => (w.code === "unparsed-remainder" ? quoted(w.message) : [])),
+  );
   for (const fragment of result.unresolved) {
+    if (skipped.has(fragment)) continue;
     addIssue(`「${fragment}」不在官方清單，英文是依字音推估的`, "warn");
   }
 
