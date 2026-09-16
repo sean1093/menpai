@@ -5,13 +5,22 @@
   --line-strong: #c9c3b8;
   --ink: #2b2a28;
   --ink-soft: #6b675f;
-  --ink-faint: #9a958c;
+  --ink-faint: #736e65;
   --ok: #3d7a4f;
   --ok-bg: #edf4ee;
-  --warn: #9a6b12;
+  --warn: #8f6310;
   --warn-bg: #f9f2e3;
   --bad: #a83a3a;
   --bad-bg: #f9ecec;
+  --bad-line: #eacaca;
+  /* The textarea's surface. Same as --paper in light; its own in dark, where
+     --paper would sit almost on top of --card. */
+  --well: #f4f2ed;
+  /* Text and knobs that sit on top of --ink. */
+  --on-ink: #ffffff;
+  --ink-hover: #1d1c1b;
+  /* Focus rings, as channels so the three alphas below stay one source of truth. */
+  --ring-rgb: 43, 42, 40;
   --radius: 14px;
   --radius-sm: 10px;
   --tap: 56px;
@@ -22,6 +31,16 @@
 
 * {
   box-sizing: border-box;
+}
+
+:root {
+  /*
+   * Without this the UA paints scrollbars, form-control internals and the
+   * selection highlight in light mode over a dark page. `.english` is
+   * user-select: all — the copy affordance on mobile — so the selection is the
+   * one people would actually notice.
+   */
+  color-scheme: light dark;
 }
 
 html {
@@ -110,7 +129,7 @@ textarea {
   font-size: 20px;
   line-height: 1.5;
   color: var(--ink);
-  background: var(--paper);
+  background: var(--well);
   border: 1.5px solid var(--line-strong);
   border-radius: var(--radius-sm);
   resize: vertical;
@@ -123,7 +142,7 @@ textarea::placeholder {
 textarea:focus {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(43, 42, 40, 0.12);
+  box-shadow: 0 0 0 3px rgba(var(--ring-rgb), 0.12);
 }
 
 .clear {
@@ -236,13 +255,13 @@ textarea:focus {
 .segmented input:checked + span {
   background: var(--ink);
   border-color: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   position: relative;
   z-index: 1;
 }
 
 .segmented input:focus-visible + span {
-  box-shadow: 0 0 0 3px rgba(43, 42, 40, 0.25);
+  box-shadow: 0 0 0 3px rgba(var(--ring-rgb), 0.25);
   z-index: 2;
 }
 
@@ -282,7 +301,7 @@ textarea:focus {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--on-ink);
   transition: transform 0.15s;
 }
 
@@ -295,7 +314,7 @@ textarea:focus {
 }
 
 .switch input:focus-visible + .switch-track {
-  box-shadow: 0 0 0 3px rgba(43, 42, 40, 0.25);
+  box-shadow: 0 0 0 3px rgba(var(--ring-rgb), 0.25);
 }
 
 /* ---- Buttons ----------------------------------------------------------- */
@@ -308,18 +327,18 @@ textarea:focus {
   border: none;
   border-radius: var(--radius-sm);
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   font-size: 19px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 
 .primary:hover {
-  background: #1d1c1b;
+  background: var(--ink-hover);
 }
 
 .primary:focus-visible {
-  outline: 3px solid rgba(43, 42, 40, 0.35);
+  outline: 3px solid rgba(var(--ring-rgb), 0.35);
   outline-offset: 2px;
 }
 
@@ -366,16 +385,19 @@ textarea:focus {
   -webkit-user-select: all;
 }
 
+/*
+ * Inferred and unknown must not differ by colour alone: inferred gets a solid
+ * rule, unknown a wavy one, so the two are still apart in greyscale and for a
+ * red/green-blind reader.
+ */
 .english .seg-inferred {
-  text-decoration: underline;
-  text-decoration-color: var(--warn);
+  text-decoration: underline solid var(--warn);
   text-decoration-thickness: 3px;
   text-underline-offset: 4px;
 }
 
 .english .seg-unknown {
-  text-decoration: underline;
-  text-decoration-color: var(--bad);
+  text-decoration: underline wavy var(--bad);
   text-decoration-thickness: 3px;
   text-underline-offset: 4px;
 }
@@ -483,16 +505,20 @@ textarea:focus {
   vertical-align: middle;
 }
 
+/* Filled disc / hollow ring / diamond — legible without colour. */
 .dot.exact {
   background: var(--ok);
 }
 
 .dot.inferred {
-  background: var(--warn);
+  background: transparent;
+  border: 3px solid var(--warn);
 }
 
 .dot.unknown {
   background: var(--bad);
+  border-radius: 2px;
+  transform: rotate(45deg);
 }
 
 /* ---- Error / note / footer -------------------------------------------- */
@@ -516,7 +542,7 @@ footer p {
 
 .error {
   background: var(--bad-bg);
-  border-color: #eacaca;
+  border-color: var(--bad-line);
   color: var(--bad);
 }
 
@@ -539,5 +565,33 @@ footer p {
   .switch-track,
   .switch-track::after {
     transition: none;
+  }
+}
+
+/* ---- Dark ---------------------------------------------------------------
+ * This tool gets used at night, on a phone, arriving from another app. Only
+ * the tokens change; every rule above is shared.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #161513;
+    --card: #201f1c;
+    --line: #322f2a;
+    --line-strong: #4d483f;
+    --ink: #ece8e0;
+    --ink-soft: #b0aa9e;
+    --ink-faint: #8f8a80;
+    --ok: #86c496;
+    --ok-bg: #1a2b1f;
+    --warn: #e2b566;
+    --warn-bg: #2e2617;
+    --bad: #f0928f;
+    --bad-bg: #321e1e;
+    --bad-line: #5e3838;
+    --well: #100f0e;
+    --on-ink: #161513;
+    /* Not pure white: brighter than --ink on a near-black page haloes. */
+    --ink-hover: #f6f3ee;
+    --ring-rgb: 236, 232, 224;
   }
 }
