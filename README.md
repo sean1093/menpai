@@ -92,7 +92,7 @@ Accepted input variations: `臺` / `台`, full-width digits, Chinese numerals (`
 | --- | --- |
 | `empty-input` | Nothing to parse. |
 | `city-not-found` | No city / county at the start, and no unique district either. |
-| `area-ambiguous` | e.g. `大安區…` alone — exists in 臺北市 and 臺中市; add the city or a postal code. |
+| `area-ambiguous` | e.g. `大安區…` alone — exists in 臺北市 and 臺中市; add the city or a postal code. `error.candidates` lists them, so you can offer the choice. |
 
 `warnings[].code`: `city-alias`, `area-alias`, `city-inferred-from-area`, `postal-code-mismatch` (the code in the input does not belong to that district; it is kept, not corrected), `unparsed-remainder`.
 
@@ -140,6 +140,7 @@ interface FormatResult {
   segments: Array<{ key: keyof AddressParts; value: string; confidence: Confidence }>;
   unresolved: string[];    // Chinese fragments rendered by a fallback (or left as-is)
   error?: ParseError;      // translate() only, and only when english is ""
+                           //   .candidates lists the cities for area-ambiguous
   warnings?: ParseWarning[]; // translate() only, omitted when empty
 }
 ```

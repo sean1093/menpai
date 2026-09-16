@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AREAS } from "../src/data/places.js";
 import { parse } from "../src/index.js";
 import type { AddressParts, ParseWarningCode } from "../src/types.js";
 
@@ -416,6 +417,82 @@ describe("parse", () => {
       expect(result.unparsed).toBe(c.unparsed ?? "");
     });
   }
+
+  it("names the candidate cities when a district is ambiguous", () => {
+    const result = parse("大安區中山路1號");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("area-ambiguous");
+    expect(result.error.candidates).toEqual(["臺北市", "臺中市"]);
+    for (const city of result.error.candidates ?? []) {
+      expect(result.error.message).toContain(city);
+    }
+  });
+
+  it("keeps the candidates when a postal code matches none of them", () => {
+    // A code that belongs to no candidate says nothing about which city was
+    // meant; the old behaviour reported "exists in more than one city ()".
+    const result = parse("999大安區中山路1號");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.candidates).toEqual(["臺北市", "臺中市"]);
+    expect(result.error.message).not.toContain("()");
+  });
+
+  it("every candidate it offers actually resolves the ambiguity", () => {
+    // The contract the site's tap-to-choose buttons rely on. Asserting only
+    // `ok` and `city` is not enough: "臺北市999大安區中山路1號" is `ok` with the
+    // right city while the district, road and number are all gone.
+    const byName = new Map<string, Set<number>>();
+    for (const [cityIndex, zh] of AREAS) {
+      if (zh === "") continue;
+      if (!byName.has(zh)) byName.set(zh, new Set());
+      byName.get(zh)?.add(cityIndex);
+    }
+    const ambiguous = [...byName.entries()].filter(([, cities]) => cities.size > 1);
+    // Districts in 3+ cities (東區 is in four) are the cases most worth covering,
+    // so count exactly rather than leaving slack that could silently skip them.
+    const expected = ambiguous.reduce((n, [, cities]) => n + cities.size, 0);
+    expect(ambiguous.length).toBeGreaterThan(0);
+
+    let checked = 0;
+    for (const [zh] of ambiguous) {
+      // Both shapes the site's button produces: with and without a postal code.
+      for (const [prefix, rest] of [
+        ["", `${zh}中山路1號`],
+        ["999", `${zh}中山路1號`],
+      ] as const) {
+        const result = parse(prefix + rest);
+        expect(result.ok, prefix + rest).toBe(false);
+        if (result.ok) continue;
+        expect(result.error.code, prefix + rest).toBe("area-ambiguous");
+        const candidates = result.error.candidates ?? [];
+        expect(candidates.length, prefix + rest).toBeGreaterThan(1);
+        for (const city of candidates) {
+          // The city is inserted after any postal code, as the site does it.
+          const input = prefix + city + rest;
+          const fixed = parse(input);
+          expect(fixed.ok, input).toBe(true);
+          if (!fixed.ok) continue;
+          expect(fixed.parts.city, input).toBe(city);
+          expect(fixed.parts.area, input).toBe(zh);
+          expect(fixed.parts.road, input).toBe("中山路");
+          expect(fixed.parts.number, input).toBe("1");
+          expect(fixed.unparsed, input).toBe("");
+          if (prefix === "") checked++;
+        }
+      }
+    }
+    expect(checked).toBe(expected);
+  });
+
+  it("does not set candidates for other failures", () => {
+    const result = parse("忠孝東路四段1號");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("city-not-found");
+    expect(result.error.candidates).toBeUndefined();
+  });
 
   it("rejects empty input", () => {
     expect(parse("   ")).toEqual({

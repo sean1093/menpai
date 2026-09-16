@@ -104,6 +104,12 @@ export type ParseErrorCode = "empty-input" | "city-not-found" | "area-ambiguous"
 export interface ParseError {
   code: ParseErrorCode;
   message: string;
+  /**
+   * For `area-ambiguous`: the city names the district could belong to, in the
+   * official order. Structured so a caller can offer the choice instead of
+   * asking the user to parse an English sentence.
+   */
+  candidates?: string[];
 }
 
 export type ParseResult =

@@ -139,16 +139,22 @@ function locate(
     };
   }
   if (candidates.length > 1 && postalCode) {
-    candidates = candidates.filter((a) => a.zip === postalCode.slice(0, 3));
+    const narrowed = candidates.filter((a) => a.zip === postalCode.slice(0, 3));
+    // A code matching none of them tells us nothing about which city was meant.
+    // Keep the choice open rather than reporting an empty list of candidates.
+    if (narrowed.length > 0) candidates = narrowed;
   }
   const first = candidates[0];
   if (candidates.length !== 1 || !first) {
-    const cities = candidates.map((a) => cityAt(a.city)?.zh ?? "").join(", ");
+    const cities = [
+      ...new Set(candidates.map((a) => cityAt(a.city)?.zh ?? "").filter((zh) => zh !== "")),
+    ];
     return {
       ok: false,
       error: {
         code: "area-ambiguous",
-        message: `"${text.slice(0, 3)}" exists in more than one city (${cities}); add the city name or a postal code.`,
+        message: `"${text.slice(0, first?.zh.length ?? 3)}" exists in more than one city (${cities.join(", ")}); add the city name or a postal code.`,
+        candidates: cities,
       },
     };
   }

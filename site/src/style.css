@@ -546,6 +546,44 @@ footer p {
   color: var(--bad);
 }
 
+/* Candidate cities for an ambiguous district: one tap instead of retyping. */
+.choices[hidden] {
+  /* `display: flex` below outranks the UA rule for [hidden], which would
+     otherwise leave the gap under every error that has no choices. */
+  display: none;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.choices button {
+  min-height: var(--tap);
+  padding: 8px 18px;
+  border: 1.5px solid var(--bad);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.choices button:hover,
+.choices button:focus-visible {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+
+.choices button:focus-visible {
+  outline: 3px solid rgba(var(--ring-rgb), 0.35);
+  outline-offset: 2px;
+}
+
 .error p {
   margin: 0;
   font-weight: 600;
