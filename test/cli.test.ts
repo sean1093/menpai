@@ -171,6 +171,21 @@ describe("cli", () => {
       expect(r.stderr).not.toContain("romanized by rule: 不存在的路, 市政大樓");
     });
 
+    it("explains an unknown that nothing else accounts for", () => {
+      // An impossible number makes its own segment unknown without putting
+      // anything in `unresolved` or raising a warning, so a batch row used to
+      // fail with nothing at all printed to say why.
+      const r = runCli(["臺北市大安區忠孝東路一段1號1200樓"]);
+      expect(r.code).toBe(1);
+      expect(r.stderr).toContain("cannot vouch for: 1200 F.");
+    });
+
+    it("says nothing for an address it is sure about", () => {
+      const r = runCli(["臺北市大安區忠孝東路一段1號12樓"]);
+      expect(r.stderr).toBe("");
+      expect(r.code).toBe(0);
+    });
+
     it("reports a renamed county", () => {
       const r = runCli(["桃園縣中壢市中央西路二段30號"]);
       expect(r.stderr).toContain("桃園縣");

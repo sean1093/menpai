@@ -84,7 +84,9 @@ function structural(en: string, ...numbers: Numeric[]): Resolved {
  */
 function unitValue(text: string): Numeric {
   const t = normalizeZh(text);
-  // A lettered unit (A, A1) has no meaningful range; only numbers are bounded.
+  // A lettered unit (A, A1) has no meaningful range and is always believable;
+  // anything else is a number and is bounded like one, so `room: "ab"` still
+  // passes through as written but no longer counts as exact.
   if (/^[A-Za-z][0-9]{0,2}$/.test(t)) return { text: t.toUpperCase(), plausible: true };
   return numeric(t, CEILING.room);
 }
@@ -100,7 +102,10 @@ function floorValue(text: string): Numeric {
   const basement = /^(?:地下|[Bb])([0-9〇零一二三四五六七八九十百千兩]+)$/.exec(normalizeZh(text));
   if (basement?.[1] === undefined) return numeric(text, CEILING.floor);
   const level = numeric(basement[1], CEILING.basement);
-  return { text: `B${level.text}`, plausible: level.plausible };
+  // Only wear the `B` if the level is believable; otherwise pass the input
+  // through as written rather than emitting `B一千`.
+  if (!level.plausible) return { text: normalizeZh(text), plausible: false };
+  return { text: `B${level.text}`, plausible: true };
 }
 
 interface Resolved {

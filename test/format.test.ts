@@ -91,6 +91,22 @@ describe("format: order and abbreviations", () => {
     it("passes an implausible value through rather than dropping it", () => {
       expect(format({ floor: "1200" }, { country: false }).english).toBe("1200 F.");
     });
+
+    it("does not glue a B onto an unconverted numeral", () => {
+      // `B一千 F.` mixes scripts; pass the input through as written instead.
+      expect(format({ floor: "地下一千" }, { country: false }).english).toBe("地下一千 F.");
+      expect(format({ floor: "地下1" }, { country: false }).english).toBe("B1 F.");
+    });
+
+    it("marks only the offending segment, not the rest", () => {
+      const r = format({ city: "臺北市", area: "大安區", number: "1", floor: "1200" });
+      expect(r.confidence).toBe("unknown");
+      const byKey = Object.fromEntries(r.segments.map((s) => [s.key, s.confidence]));
+      expect(byKey.floor).toBe("unknown");
+      expect(byKey.number).toBe("exact");
+      expect(byKey.area).toBe("exact");
+      expect(byKey.city).toBe("exact");
+    });
   });
 
   const abbreviations: [string, AddressParts, string][] = [
