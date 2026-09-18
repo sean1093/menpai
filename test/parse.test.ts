@@ -227,6 +227,36 @@ const cases: Case[] = [
     parts: { city: "新竹市", road: "光復路", section: "1", number: "7" },
   },
   {
+    // The official road list carries compound "<village><place>" keys, and a
+    // greedy match on one swallowed the real road: this used to parse as
+    // road 福星里福星 with "北一街1號" stranded — losing the village, the road
+    // and the house number at once.
+    name: "compound village+road key does not swallow a longer road",
+    input: "臺北市中正區福星里福星北一街1號",
+    parts: { city: "臺北市", area: "中正區", village: "福星里", road: "福星北一街", number: "1" },
+  },
+  {
+    name: "compound village+road key is still used when nothing longer follows",
+    input: "臺北市中正區福星里福星1號",
+    parts: { city: "臺北市", area: "中正區", road: "福星里福星", number: "1" },
+  },
+  {
+    // Taken from the data, not invented: the compound key here is 三貂里頂坑.
+    name: "another compound key: village + a longer real road",
+    input: "新北市貢寮區三貂里頂坑巷1號",
+    parts: { city: "新北市", area: "貢寮區", village: "三貂里", road: "頂坑巷", number: "1" },
+  },
+  {
+    name: "a third: the compound key is 中和里海口",
+    input: "雲林縣口湖鄉中和里海口北路1號",
+    parts: { city: "雲林縣", area: "口湖鄉", village: "中和里", road: "海口北路", number: "1" },
+  },
+  {
+    name: "七里橋 is a road, not 七里 village plus 橋",
+    input: "新北市樹林區七里橋1號",
+    parts: { city: "新北市", area: "樹林區", road: "七里橋", number: "1" },
+  },
+  {
     name: "unknown road falls back to shape",
     input: "臺北市信義區不存在的路99號",
     parts: { city: "臺北市", area: "信義區", road: "不存在的路", number: "99" },

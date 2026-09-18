@@ -211,11 +211,24 @@ export function parse(input: string): ParseResult {
 
   rest = normalizeSections(rest);
 
-  // Village: dictionary first, then shape. A longer road-dictionary hit wins (七里橋 is a road, not 七里 village).
+  // Village: dictionary first, then shape. A longer road-dictionary hit normally
+  // wins (七里橋 is a road, not 七里 village + 橋).
   const villageHit = longestPrefix(rest, villageEntry) ?? VILLAGE.exec(rest)?.[1];
   if (villageHit) {
     const roadHit = longestPrefix(rest, roadEntry);
-    if (!roadHit || roadHit.length <= villageHit.length) {
+    // …except that the official road list also carries compound
+    // "<village><place>" keys — 福星里福星 → "Fuxing, Fuxing Vil." — and a
+    // greedy match on one of those swallows a longer real road: 福星里福星北一街
+    // is 福星里 + 福星北一街, not the compound with 北一街 left stranded.
+    // Take the village when doing so reaches a road that reads further than the
+    // compound's own tail; 七里橋 is unaffected, since nothing follows 七里.
+    let splitsBetter = false;
+    if (roadHit?.startsWith(villageHit)) {
+      const afterVillage = advance(rest, villageHit.length);
+      const splitRoad = longestPrefix(afterVillage, roadEntry);
+      splitsBetter = (splitRoad?.length ?? 0) > roadHit.length - villageHit.length;
+    }
+    if (!roadHit || roadHit.length <= villageHit.length || splitsBetter) {
       parts.village = villageHit;
       rest = advance(rest, villageHit.length);
     }
