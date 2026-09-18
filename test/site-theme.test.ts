@@ -62,6 +62,23 @@ const PAIRS: [string, string][] = [
   ["warn", "card"],
 ];
 
+/**
+ * Non-text boundaries and state indicators: WCAG 1.4.11 wants 3:1. These are
+ * separate from PAIRS because the threshold differs, and because they were the
+ * ones nobody was checking — the country toggle's state sat at 1.75:1, and the
+ * fill plus the knob position are its only indicators.
+ */
+const BOUNDARIES: [string, string][] = [
+  ["line-strong", "card"],
+  ["line-strong", "paper"],
+  ["line-strong", "well"],
+  // The switch knob against the unchecked track.
+  ["on-ink", "line-strong"],
+  ["ring", "card"],
+  ["ring", "paper"],
+  ["ring", "well"],
+];
+
 describe("site theme", () => {
   for (const [name, set] of [
     ["light", light],
@@ -69,11 +86,20 @@ describe("site theme", () => {
   ] as const) {
     describe(name, () => {
       it("defines every colour token", () => {
-        for (const [fg, bg] of PAIRS) {
+        for (const [fg, bg] of [...PAIRS, ...BOUNDARIES]) {
           expect(set[fg], `--${fg} missing in ${name}`).toBeDefined();
           expect(set[bg], `--${bg} missing in ${name}`).toBeDefined();
         }
       });
+
+      for (const [fg, bg] of BOUNDARIES) {
+        it(`--${fg} on --${bg} meets the 3:1 boundary threshold`, () => {
+          const ratio = contrast(set[fg] ?? "", set[bg] ?? "");
+          expect(ratio, `${set[fg]} on ${set[bg]} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+            3,
+          );
+        });
+      }
 
       for (const [fg, bg] of PAIRS) {
         it(`--${fg} on --${bg} meets AA`, () => {
@@ -110,6 +136,17 @@ describe("site theme", () => {
     expect(css).toMatch(/\.english \.seg-unknown \{[^}]*underline wavy/);
     expect(css).toMatch(/\.dot\.inferred \{[^}]*background: transparent/);
     expect(css).toMatch(/\.dot\.unknown \{[^}]*rotate\(45deg\)/);
+    // The issue list carries the same three severities and needs the same.
+    expect(css).toMatch(/\.issues li\.bad::before \{[^}]*rotate\(45deg\)/);
+    expect(css).toMatch(/\.issues li\.info::before \{[^}]*background: transparent/);
+  });
+
+  it("uses a solid focus ring, not a wash", () => {
+    // Composited at 0.12 alpha the textarea ring was invisible, and the state
+    // was really being carried by its border-color.
+    expect(css).not.toMatch(/rgba\(var\(--ring/);
+    expect(css).toMatch(/box-shadow: 0 0 0 3px var\(--ring\)/);
+    expect(css).toMatch(/outline: 3px solid var\(--ring\)/);
   });
 
   it("declares color-scheme, so UA-painted chrome follows the page", () => {
