@@ -175,6 +175,14 @@ function notes(input: string, result: ReturnType<typeof translate>): string[] {
   if (guessed.length > 0) {
     out.push(`${input}: not in the official list, romanized by rule: ${guessed.join(", ")}`);
   }
+
+  // A number no real address would carry makes its own segment `unknown`
+  // without putting anything in `unresolved` or raising a warning. Without this
+  // a batch row fails with nothing at all printed to say why.
+  const doubtful = result.segments.filter((s) => s.confidence === "unknown");
+  if (doubtful.length > 0) {
+    out.push(`${input}: cannot vouch for: ${doubtful.map((s) => s.value).join(", ")}`);
+  }
   return out;
 }
 

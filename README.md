@@ -151,7 +151,7 @@ interface FormatResult {
 | --- | --- |
 | `exact` | The name is in the official Chunghwa Post list, or the segment is a structural token (`No.`, `Sec.`, `F.`) whose form is fixed by the Chunghwa Post writing guideline. |
 | `inferred` | Produced by a fallback: character-by-character pinyin plus suffix rules (`路` → `Rd.`, trailing `東` → `E.`, `一路` → `1st Rd.`). Also every Wade-Giles conversion, since no official reference exists for it. The Chinese fragment is listed in `unresolved`. |
-| `unknown` | Could not be translated (a character with no reading, a postal code that contradicts the district, text that was not understood). The value is passed through so a human can see it. |
+| `unknown` | Could not be translated (a character with no reading, a postal code that contradicts the district, text that was not understood), or a number no real address would carry (`0 F.`, `1200 F.`, `No. 0`). The value is passed through so a human can see it. |
 
 The overall `confidence` is the minimum over segments.
 
