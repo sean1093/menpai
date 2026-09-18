@@ -143,7 +143,9 @@ textarea::placeholder {
 textarea:focus {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px var(--ring);
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 5px var(--ring);
 }
 
 .clear {
@@ -163,6 +165,11 @@ textarea:focus {
 .clear:hover,
 .clear:focus-visible {
   background: var(--line);
+}
+
+.clear:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: -3px;
 }
 
 /* ---- Examples ---------------------------------------------------------- */
@@ -195,6 +202,12 @@ textarea:focus {
 .chip:focus-visible {
   border-color: var(--ink);
   color: var(--ink);
+}
+
+/* Without this the chips fall back to the UA ring, which ignores the theme. */
+.chip:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
 }
 
 /* ---- Segmented control ------------------------------------------------- */
@@ -262,7 +275,9 @@ textarea:focus {
 }
 
 .segmented input:focus-visible + span {
-  box-shadow: 0 0 0 3px var(--ring);
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 5px var(--ring);
   z-index: 2;
 }
 
@@ -315,7 +330,9 @@ textarea:focus {
 }
 
 .switch input:focus-visible + .switch-track {
-  box-shadow: 0 0 0 3px var(--ring);
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 5px var(--ring);
 }
 
 /* ---- Buttons ----------------------------------------------------------- */

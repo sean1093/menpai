@@ -141,12 +141,46 @@ describe("site theme", () => {
     expect(css).toMatch(/\.issues li\.info::before \{[^}]*background: transparent/);
   });
 
-  it("uses a solid focus ring, not a wash", () => {
+  describe("focus rings", () => {
     // Composited at 0.12 alpha the textarea ring was invisible, and the state
     // was really being carried by its border-color.
-    expect(css).not.toMatch(/rgba\(var\(--ring/);
-    expect(css).toMatch(/box-shadow: 0 0 0 3px var\(--ring\)/);
-    expect(css).toMatch(/outline: 3px solid var\(--ring\)/);
+    it("are solid, never a wash", () => {
+      expect(css).not.toMatch(/rgba\(var\(--ring/);
+    });
+
+    // Naming each selector, because asserting the declaration merely *appears*
+    // lets any one control lose its ring while the others keep the test green.
+    const FOCUSABLE: [string, RegExp][] = [
+      // The spacer matters: without it the ring's inner edge sits on the
+      // control's own fill (--ink when checked, --line-strong on the switch
+      // track) at 1.60–2.55:1, and no single hue clears 3:1 against those and
+      // the card at once.
+      ["textarea:focus", /0 0 0 2px var\(--card\),\s*0 0 0 5px var\(--ring\)/],
+      [
+        "\\.segmented input:focus-visible \\+ span",
+        /0 0 0 2px var\(--card\),\s*0 0 0 5px var\(--ring\)/,
+      ],
+      [
+        "\\.switch input:focus-visible \\+ \\.switch-track",
+        /0 0 0 2px var\(--card\),\s*0 0 0 5px var\(--ring\)/,
+      ],
+      ["\\.chip:focus-visible", /outline: 3px solid var\(--ring\)/],
+      ["\\.clear:focus-visible", /outline: 3px solid var\(--ring\)/],
+      ["\\.primary:focus-visible", /outline: 3px solid var\(--ring\)/],
+      ["\\.choices button:focus-visible", /outline: 3px solid var\(--ring\)/],
+    ];
+    for (const [selector, declaration] of FOCUSABLE) {
+      it(`${selector.replace(/\\\\/g, "")} has one`, () => {
+        const blocks = [...css.matchAll(new RegExp(`${selector}[^{]*\\{([^}]*)\\}`, "g"))].map(
+          (m) => m[1] ?? "",
+        );
+        expect(blocks.length, `${selector} has no rule at all`).toBeGreaterThan(0);
+        expect(
+          blocks.some((b) => declaration.test(b)),
+          `${selector} lost its focus ring`,
+        ).toBe(true);
+      });
+    }
   });
 
   it("declares color-scheme, so UA-painted chrome follows the page", () => {
