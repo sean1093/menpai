@@ -109,6 +109,8 @@ function matchArea(
     warnings.push({
       code: "area-alias",
       message: `"${text.slice(0, best.length)}" was read as "${best.area.zh}".`,
+      text: text.slice(0, best.length),
+      resolved: best.area.zh,
     });
   }
   return { area: best.area, length: best.length };
@@ -124,7 +126,12 @@ function locate(
   const city = findCity(alias ?? cityToken);
   if (city) {
     if (alias) {
-      warnings.push({ code: "city-alias", message: `"${cityToken}" was read as "${alias}".` });
+      warnings.push({
+        code: "city-alias",
+        message: `"${cityToken}" was read as "${alias}".`,
+        text: cityToken,
+        resolved: alias,
+      });
     }
     const afterCity = text.slice(3).replace(/^\s+/, "");
     const skipped = text.length - 3 - afterCity.length;
@@ -169,6 +176,8 @@ function locate(
   warnings.push({
     code: "city-inferred-from-area",
     message: `City "${cityAt(first.city)?.zh ?? ""}" was inferred from "${first.zh}".`,
+    text: first.zh,
+    resolved: cityAt(first.city)?.zh ?? "",
   });
   return { cityIndex: first.city, area: first, consumed: first.zh.length };
 }
@@ -213,6 +222,8 @@ export function parse(input: string): ParseResult {
         message: `Postal code ${zip3} does not belong to ${parts.area ?? parts.city}${
           located.area ? ` (expected ${located.area.zip})` : ""
         }.`,
+        text: zip3,
+        ...(located.area ? { resolved: located.area.zip } : {}),
       });
     }
   }
@@ -321,7 +332,13 @@ export function parse(input: string): ParseResult {
   }
 
   if (rest.length > 0) {
-    warnings.push({ code: "unparsed-remainder", message: `Could not interpret "${rest}".` });
+    // No `resolved`: there is no replacement, which is exactly what tells this
+    // apart from a fragment the library guessed at.
+    warnings.push({
+      code: "unparsed-remainder",
+      message: `Could not interpret "${rest}".`,
+      text: rest,
+    });
   }
   return { ok: true, parts, unparsed: rest, warnings };
 }

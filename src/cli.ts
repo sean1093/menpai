@@ -146,9 +146,6 @@ function parseArgs(argv: string[], version: string): Parsed {
   return parsed;
 }
 
-/** The whole remainder, greedily — it may itself contain a quote. */
-const UNPARSED = /^Could not interpret "([\s\S]+)"\.$/;
-
 /** Human-readable notes for stderr. Empty when the result is fully `exact`. */
 function notes(input: string, result: ReturnType<typeof translate>): string[] {
   const out: string[] = [];
@@ -164,7 +161,7 @@ function notes(input: string, result: ReturnType<typeof translate>): string[] {
   // this" versus "romanized by rule". Consume one remainder per fragment, so a
   // road that happens to read the same as the remainder keeps its own note.
   const remainders = warnings.flatMap((w) =>
-    w.code === "unparsed-remainder" ? (UNPARSED.exec(w.message)?.[1] ?? []) : [],
+    w.code === "unparsed-remainder" ? (w.text ?? []) : [],
   );
   const guessed = result.unresolved.filter((fragment) => {
     const at = remainders.indexOf(fragment);
