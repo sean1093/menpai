@@ -30,11 +30,51 @@ function lower(a: Confidence, b: Confidence): Confidence {
   return RANK[a] <= RANK[b] ? a : b;
 }
 
-function digits(text: string): string {
+/**
+ * The largest value the library is willing to vouch for, per part. Taiwan's
+ * tallest building has 101 floors and the official road list tops out at 段 8
+ * and 巷 430, so these are generous rather than tight — the point is to refuse
+ * to call `Infinity F.` or `1200 F.` *exact*, not to validate addresses.
+ */
+const CEILING = {
+  number: 99999,
+  suffix: 9999,
+  lane: 99999,
+  alley: 99999,
+  subAlley: 9999,
+  room: 9999,
+  neighborhood: 999,
+  section: 99,
+  floor: 170,
+  basement: 10,
+} as const;
+
+interface Numeric {
+  /** What to print: the number, or the input as written when it is not believable. */
+  text: string;
+  /** False when this is not a number, or not one a real address would carry. */
+  plausible: boolean;
+}
+
+/**
+ * A number, with a verdict. `digits()` alone will happily turn 20,000 nines
+ * into `"Infinity"` and hand it back as `exact`, which is the pretending this
+ * library says it does not do. Out-of-range values are passed through as the
+ * caller wrote them so a human can see what was meant.
+ */
+function numeric(text: string, max: number): Numeric {
   const t = normalizeZh(text);
-  if (/^\d+$/.test(t)) return String(Number(t));
-  const n = zhNumeralToInt(t);
-  return n === null ? t : String(n);
+  // Beyond 15 digits Number() silently loses precision, so do not even try.
+  const value = /^\d{1,15}$/.test(t) ? Number(t) : zhNumeralToInt(t);
+  if (value === null || !Number.isSafeInteger(value) || value < 1 || value > max) {
+    return { text: t, plausible: false };
+  }
+  return { text: String(value), plausible: true };
+}
+
+/** A structural segment: `exact` only when every number in it is believable. */
+function structural(en: string, ...numbers: Numeric[]): Resolved {
+  return { en, confidence: numbers.every((n) => n.plausible) ? "exact" : "unknown" };
 }
 
 /**
@@ -42,9 +82,11 @@ function digits(text: string): string {
  * digits, kept upper-case (`a` → `A`). Anything else passes through as written,
  * so `room: "ab"` stays `ab` — only the shape `parse()` can produce is normalised.
  */
-function unitValue(text: string): string {
+function unitValue(text: string): Numeric {
   const t = normalizeZh(text);
-  return /^[A-Za-z][0-9]{0,2}$/.test(t) ? t.toUpperCase() : digits(t);
+  // A lettered unit (A, A1) has no meaningful range; only numbers are bounded.
+  if (/^[A-Za-z][0-9]{0,2}$/.test(t)) return { text: t.toUpperCase(), plausible: true };
+  return numeric(t, CEILING.room);
 }
 
 /**
@@ -52,11 +94,13 @@ function unitValue(text: string): string {
  * `"b1"` when the caller hands `format()` raw input) and are emitted as `B1 F.`,
  * matching the spacing of the above-ground `3 F.` form.
  */
-function floorValue(text: string): string {
+function floorValue(text: string): Numeric {
   // Only rewrite when what follows the marker really is a numeral: `地下室` and
   // `bF` are not basement levels and must pass through as the caller wrote them.
   const basement = /^(?:地下|[Bb])([0-9〇零一二三四五六七八九十百千兩]+)$/.exec(normalizeZh(text));
-  return basement?.[1] === undefined ? digits(text) : `B${digits(basement[1])}`;
+  if (basement?.[1] === undefined) return numeric(text, CEILING.floor);
+  const level = numeric(basement[1], CEILING.basement);
+  return { text: `B${level.text}`, plausible: level.plausible };
 }
 
 interface Resolved {
@@ -158,31 +202,56 @@ export function format(parts: AddressParts, options: FormatOptions = {}): Format
   }
 
   // ---- Small → large ------------------------------------------------------
-  if (parts.room !== undefined)
-    push("room", { en: `Rm. ${unitValue(parts.room)}`, confidence: "exact" });
+  if (parts.room !== undefined) {
+    const room = unitValue(parts.room);
+    push("room", structural(`Rm. ${room.text}`, room));
+  }
   if (parts.floor !== undefined) {
-    const suffix = parts.floorSuffix === undefined ? "" : `-${unitValue(parts.floorSuffix)}`;
-    push("floor", { en: `${floorValue(parts.floor)} F.${suffix}`, confidence: "exact" });
+    const floor = floorValue(parts.floor);
+    const suffix = parts.floorSuffix === undefined ? undefined : unitValue(parts.floorSuffix);
+    push(
+      "floor",
+      structural(
+        `${floor.text} F.${suffix ? `-${suffix.text}` : ""}`,
+        floor,
+        ...(suffix ? [suffix] : []),
+      ),
+    );
   }
   if (parts.number !== undefined) {
-    const suffix = parts.numberSuffix === undefined ? "" : `-${digits(parts.numberSuffix)}`;
-    push("number", { en: `No. ${digits(parts.number)}${suffix}`, confidence: "exact" });
+    const number = numeric(parts.number, CEILING.number);
+    const suffix =
+      parts.numberSuffix === undefined ? undefined : numeric(parts.numberSuffix, CEILING.suffix);
+    push(
+      "number",
+      structural(
+        `No. ${number.text}${suffix ? `-${suffix.text}` : ""}`,
+        number,
+        ...(suffix ? [suffix] : []),
+      ),
+    );
   }
-  if (parts.subAlley !== undefined)
-    push("subAlley", { en: `Sub-Alley ${digits(parts.subAlley)}`, confidence: "exact" });
-  if (parts.alley !== undefined)
-    push("alley", { en: `Aly. ${digits(parts.alley)}`, confidence: "exact" });
+  if (parts.subAlley !== undefined) {
+    const subAlley = numeric(parts.subAlley, CEILING.subAlley);
+    push("subAlley", structural(`Sub-Alley ${subAlley.text}`, subAlley));
+  }
+  if (parts.alley !== undefined) {
+    const alley = numeric(parts.alley, CEILING.alley);
+    push("alley", structural(`Aly. ${alley.text}`, alley));
+  }
   if (parts.lane !== undefined) {
     const lane = normalizeSections(normalizeZh(parts.lane));
-    if (/^[0-9〇零一二三四五六七八九十百]+$/.test(lane))
-      push("lane", { en: `Ln. ${digits(lane)}`, confidence: "exact" });
-    else push("lane", resolveRoad(lane.endsWith("巷") ? lane : `${lane}巷`), true);
+    if (/^[0-9〇零一二三四五六七八九十百]+$/.test(lane)) {
+      const value = numeric(lane, CEILING.lane);
+      push("lane", structural(`Ln. ${value.text}`, value));
+    } else push("lane", resolveRoad(lane.endsWith("巷") ? lane : `${lane}巷`), true);
   }
   if (parts.section !== undefined) {
     const section = normalizeZh(parts.section);
-    if (/^[0-9〇零一二三四五六七八九十百]+$/.test(section))
-      push("section", { en: `Sec. ${digits(section)}`, confidence: "exact" });
-    else
+    if (/^[0-9〇零一二三四五六七八九十百]+$/.test(section)) {
+      const value = numeric(section, CEILING.section);
+      push("section", structural(`Sec. ${value.text}`, value));
+    } else
       push(
         "section",
         fromDerived(section, {
@@ -195,7 +264,8 @@ export function format(parts: AddressParts, options: FormatOptions = {}): Format
   if (parts.road !== undefined)
     push("road", resolveRoad(normalizeSections(normalizeZh(parts.road))), true);
   if (parts.neighborhood !== undefined) {
-    push("neighborhood", { en: `Neighborhood ${digits(parts.neighborhood)}`, confidence: "exact" });
+    const value = numeric(parts.neighborhood, CEILING.neighborhood);
+    push("neighborhood", structural(`Neighborhood ${value.text}`, value));
   }
   if (parts.village !== undefined)
     push("village", resolveVillage(normalizeZh(parts.village)), true);

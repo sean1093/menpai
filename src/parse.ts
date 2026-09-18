@@ -56,11 +56,17 @@ function advance(text: string, length: number): string {
   return text.slice(length).replace(/^\s+/, "");
 }
 
-/** `"十二"` → `"12"`, `"12"` → `"12"`. Callers only pass text matched by `NUM`. */
+/**
+ * `"十二"` → `"12"`, `"12"` → `"12"`. Callers only pass text matched by `NUM`.
+ *
+ * Past 15 digits `Number()` overflows to `Infinity` or silently loses
+ * precision, so anything that long is kept exactly as written — inventing a
+ * value here would put `Infinity` in an address.
+ */
 function digits(text: string): string {
-  if (/^\d+$/.test(text)) return String(Number(text));
+  if (/^\d+$/.test(text)) return text.length <= 15 ? String(Number(text)) : text;
   const n = zhNumeralToInt(text);
-  return n === null ? text : String(n);
+  return n === null || !Number.isSafeInteger(n) ? text : String(n);
 }
 
 /** A unit designator matched by {@link UNIT}: a number, or a letter kept upper-case. */

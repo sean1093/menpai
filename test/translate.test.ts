@@ -105,6 +105,18 @@ describe("translate", () => {
     expect(r.english).toContain("Taipei City 110");
   });
 
+  it("does not call an impossible floor exact", () => {
+    const r = translate("臺北市大安區忠孝東路四段1號一千二百樓");
+    expect(r.confidence).toBe("unknown");
+    expect(r.english).toContain("1200 F.");
+  });
+
+  it("never puts Infinity in an address", () => {
+    const r = translate(`臺北市大安區忠孝東路四段1號${"9".repeat(20000)}樓`);
+    expect(r.english).not.toContain("Infinity");
+    expect(r.confidence).toBe("unknown");
+  });
+
   it("keeps the input untouched (pure function)", () => {
     const input = "台北市大安區忠孝東路四段1號3樓之2";
     const a = translate(input);
