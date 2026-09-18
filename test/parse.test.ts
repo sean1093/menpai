@@ -227,6 +227,58 @@ const cases: Case[] = [
     parts: { city: "新竹市", road: "光復路", section: "1", number: "7" },
   },
   {
+    // The official road list carries compound "<village><place>" keys, and a
+    // greedy match on one swallowed the real road: this used to parse as
+    // road 福星里福星 with "北一街1號" stranded — losing the village, the road
+    // and the house number at once.
+    name: "compound village+road key does not swallow a longer road",
+    input: "臺北市中正區福星里福星北一街1號",
+    parts: { city: "臺北市", area: "中正區", village: "福星里", road: "福星北一街", number: "1" },
+  },
+  {
+    name: "compound village+road key is still used when nothing longer follows",
+    input: "臺北市中正區福星里福星1號",
+    parts: { city: "臺北市", area: "中正區", road: "福星里福星", number: "1" },
+  },
+  {
+    // Taken from the data, not invented: the compound key here is 三貂里頂坑.
+    name: "another compound key: village + a longer real road",
+    input: "新北市貢寮區三貂里頂坑巷1號",
+    parts: { city: "新北市", area: "貢寮區", village: "三貂里", road: "頂坑巷", number: "1" },
+  },
+  {
+    name: "a third: the compound key is 中和里海口",
+    input: "雲林縣口湖鄉中和里海口北路1號",
+    parts: { city: "雲林縣", area: "口湖鄉", village: "中和里", road: "海口北路", number: "1" },
+  },
+  {
+    name: "七里橋 is a road, not 七里 village plus 橋",
+    input: "新北市樹林區七里橋1號",
+    parts: { city: "新北市", area: "樹林區", road: "七里橋", number: "1" },
+  },
+  {
+    // 七里 is not in the village dictionary — the shape rule invents it — so the
+    // split must not fire even though 橋北巷 is a road somewhere in the country.
+    name: "七里橋keeps its road when a named lane follows",
+    input: "新北市樹林區七里橋北巷1號",
+    parts: { city: "新北市", area: "樹林區", road: "七里橋", lane: "北巷", number: "1" },
+  },
+  {
+    // 美村路 is an official road in Taichung and 美村 is not a village; cutting
+    // it in half would invent a village and mangle a real address.
+    name: "a real road ending in 村 is not cut in half",
+    input: "臺中市西區美村路西巷1號",
+    parts: { city: "臺中市", area: "西區", road: "美村路", lane: "西巷", number: "1" },
+  },
+  {
+    // 塘興村 *is* a dictionary village and 塘興村坪頂 *is* a compound key, so the
+    // guard here is the orphaned 巷: splitting to 坪頂東 reads one character
+    // further but strands the marker the compound reading uses as a lane.
+    name: "a split that would orphan a lane marker is refused",
+    input: "臺北市中正區塘興村坪頂東巷1號",
+    parts: { city: "臺北市", area: "中正區", road: "塘興村坪頂", lane: "東巷", number: "1" },
+  },
+  {
     name: "unknown road falls back to shape",
     input: "臺北市信義區不存在的路99號",
     parts: { city: "臺北市", area: "信義區", road: "不存在的路", number: "99" },
@@ -492,6 +544,45 @@ describe("parse", () => {
     if (result.ok) return;
     expect(result.error.code).toBe("city-not-found");
     expect(result.error.candidates).toBeUndefined();
+  });
+
+  it("carries the fragment each warning is about, without needing the message", () => {
+    // Consumers were parsing the English `message` to recover these, which
+    // coupled them to wording the library is free to change.
+    const alias = parse("桃園縣中壢市中央西路二段30號");
+    expect(alias.ok).toBe(true);
+    if (!alias.ok) return;
+    expect(alias.warnings.map((w) => [w.code, w.text, w.resolved])).toEqual([
+      ["city-alias", "桃園縣", "桃園市"],
+      ["area-alias", "中壢市", "中壢區"],
+    ]);
+
+    const inferred = parse("大同區二仁路二段9號");
+    expect(inferred.ok).toBe(true);
+    if (!inferred.ok) return;
+    expect(inferred.warnings.map((w) => [w.code, w.text, w.resolved])).toEqual([
+      ["city-inferred-from-area", "大同區", "臺北市"],
+    ]);
+
+    const zip = parse("999臺北市大安區忠孝東路四段1號");
+    expect(zip.ok).toBe(true);
+    if (!zip.ok) return;
+    expect(zip.warnings.map((w) => [w.code, w.text, w.resolved])).toEqual([
+      ["postal-code-mismatch", "999", "106"],
+    ]);
+  });
+
+  it("marks a skipped fragment apart from a guessed one", () => {
+    // The distinction the field exists for: both end up in
+    // FormatResult.unresolved, and only the skipped one has a warning.
+    const result = parse("臺北市信義區市府路1號市政大樓");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const remainder = result.warnings.find((w) => w.code === "unparsed-remainder");
+    expect(remainder?.text).toBe("市政大樓");
+    // Nothing replaced it, so there is no `resolved`.
+    expect(remainder?.resolved).toBeUndefined();
+    expect(result.unparsed).toBe("市政大樓");
   });
 
   it("rejects empty input", () => {

@@ -39,6 +39,76 @@ describe("format: order and abbreviations", () => {
     ]);
   });
 
+  describe("implausible numbers are not called exact", () => {
+    // `exact` is the library's central promise. A number no real address could
+    // carry must not borrow it, but the value is still passed through so a
+    // human can see what was meant.
+    const implausible: [string, AddressParts][] = [
+      ["floor 0", { floor: "0" }],
+      ["floor 1200", { floor: "1200" }],
+      ["floor 一千二百", { floor: "一千二百" }],
+      ["basement B0", { floor: "B0" }],
+      ["basement B99", { floor: "B99" }],
+      ["number 0", { number: "0" }],
+      ["number 999999", { number: "999999" }],
+      ["lane 999999", { lane: "999999" }],
+      ["room 99999", { room: "99999" }],
+      ["neighborhood 5000", { neighborhood: "5000" }],
+      ["section 0", { section: "0" }],
+    ];
+    for (const [name, parts] of implausible) {
+      it(name, () => {
+        expect(format(parts, { country: false }).confidence).toBe("unknown");
+      });
+    }
+
+    const plausible: [string, AddressParts][] = [
+      ["floor 1", { floor: "1" }],
+      ["floor 101 (Taipei 101)", { floor: "101" }],
+      ["basement B1", { floor: "B1" }],
+      ["basement B10", { floor: "B10" }],
+      ["number 99999", { number: "99999" }],
+      ["lane 430 (the largest in the official list)", { lane: "430" }],
+      ["section 8 (the largest in the official list)", { section: "8" }],
+      ["neighborhood 999", { neighborhood: "999" }],
+      ["lettered room", { room: "A1" }],
+    ];
+    for (const [name, parts] of plausible) {
+      it(`${name} is still exact`, () => {
+        expect(format(parts, { country: false }).confidence).toBe("exact");
+      });
+    }
+
+    it("never emits Infinity, however long the number", () => {
+      const huge = "9".repeat(20000);
+      for (const parts of [{ floor: huge }, { number: huge }, { lane: huge }, { room: huge }]) {
+        const r = format(parts, { country: false });
+        expect(r.english, JSON.stringify(Object.keys(parts))).not.toContain("Infinity");
+        expect(r.confidence).toBe("unknown");
+      }
+    });
+
+    it("passes an implausible value through rather than dropping it", () => {
+      expect(format({ floor: "1200" }, { country: false }).english).toBe("1200 F.");
+    });
+
+    it("does not glue a B onto an unconverted numeral", () => {
+      // `B一千 F.` mixes scripts; pass the input through as written instead.
+      expect(format({ floor: "地下一千" }, { country: false }).english).toBe("地下一千 F.");
+      expect(format({ floor: "地下1" }, { country: false }).english).toBe("B1 F.");
+    });
+
+    it("marks only the offending segment, not the rest", () => {
+      const r = format({ city: "臺北市", area: "大安區", number: "1", floor: "1200" });
+      expect(r.confidence).toBe("unknown");
+      const byKey = Object.fromEntries(r.segments.map((s) => [s.key, s.confidence]));
+      expect(byKey.floor).toBe("unknown");
+      expect(byKey.number).toBe("exact");
+      expect(byKey.area).toBe("exact");
+      expect(byKey.city).toBe("exact");
+    });
+  });
+
   const abbreviations: [string, AddressParts, string][] = [
     ["路 → Rd.", { road: "忠孝東路" }, "Zhongxiao E. Rd."],
     ["街 → St.", { road: "三元街" }, "Sanyuan St."],

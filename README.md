@@ -96,6 +96,16 @@ Accepted input variations: `臺` / `台`, full-width digits, Chinese numerals (`
 
 `warnings[].code`: `city-alias`, `area-alias`, `city-inferred-from-area`, `postal-code-mismatch` (the code in the input does not belong to that district; it is kept, not corrected), `unparsed-remainder`.
 
+Each warning also carries `text` — the input fragment it is about — and, where there is one, `resolved`, what the library used instead. That is how you tell a fragment the library *guessed* at from one it *skipped*: both appear in `unresolved`, but only a skipped one has an `unparsed-remainder` warning naming it, and that warning has no `resolved`.
+
+```ts
+parse("桃園縣中壢市中央西路二段30號").warnings;
+// [{ code: "city-alias", text: "桃園縣", resolved: "桃園市", message: … },
+//  { code: "area-alias", text: "中壢市", resolved: "中壢區", message: … }]
+```
+
+Build your own copy from `code`, `text` and `resolved`; `message` is English prose and its wording is not part of the contract.
+
 ### `format(parts, options?) → FormatResult`
 
 Structured parts → English. Use it directly when the address already lives in separate fields.
@@ -151,7 +161,7 @@ interface FormatResult {
 | --- | --- |
 | `exact` | The name is in the official Chunghwa Post list, or the segment is a structural token (`No.`, `Sec.`, `F.`) whose form is fixed by the Chunghwa Post writing guideline. |
 | `inferred` | Produced by a fallback: character-by-character pinyin plus suffix rules (`路` → `Rd.`, trailing `東` → `E.`, `一路` → `1st Rd.`). Also every Wade-Giles conversion, since no official reference exists for it. The Chinese fragment is listed in `unresolved`. |
-| `unknown` | Could not be translated (a character with no reading, a postal code that contradicts the district, text that was not understood). The value is passed through so a human can see it. |
+| `unknown` | Could not be translated (a character with no reading, a postal code that contradicts the district, text that was not understood), or a number no real address would carry (`0 F.`, `1200 F.`, `No. 0`). The value is passed through so a human can see it. |
 
 The overall `confidence` is the minimum over segments.
 

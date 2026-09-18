@@ -51,30 +51,25 @@ const PART_LABEL: Record<keyof AddressParts, string> = {
   room: "室",
 };
 
-/** The whole remainder, greedily — it may itself contain a quote. */
-const UNPARSED = /^Could not interpret "([\s\S]+)"\.$/;
-
-const quoted = (message: string): string[] =>
-  [...message.matchAll(/"([^"]+)"/g)].map((m) => m[1] ?? "");
-
+/**
+ * Every warning carries the fragment it is about in `text`, and what the
+ * library used instead in `resolved`, so none of this reads the English
+ * `message` — that wording is the library's to change.
+ */
 function describeWarning(w: ParseWarning): { text: string; level: "info" | "warn" | "bad" } {
-  const q = quoted(w.message);
   switch (w.code) {
     case "city-alias":
-      return { text: `「${q[0]}」已改制為「${q[1]}」，已依新名稱翻譯`, level: "info" };
     case "area-alias":
-      return { text: `「${q[0]}」已改制為「${q[1]}」，已依新名稱翻譯`, level: "info" };
+      return { text: `「${w.text}」已改制為「${w.resolved}」，已依新名稱翻譯`, level: "info" };
     case "city-inferred-from-area":
-      return { text: `未輸入縣市，依「${q[1]}」推得「${q[0]}」`, level: "info" };
-    case "postal-code-mismatch": {
-      const expected = /expected (\d{3})/.exec(w.message)?.[1];
+      return { text: `未輸入縣市，依「${w.text}」推得「${w.resolved}」`, level: "info" };
+    case "postal-code-mismatch":
       return {
-        text: `郵遞區號與行政區不符${expected ? `（此區應為 ${expected}）` : ""}，已照原樣保留，請確認`,
+        text: `郵遞區號與行政區不符${w.resolved ? `（此區應為 ${w.resolved}）` : ""}，已照原樣保留，請確認`,
         level: "bad",
       };
-    }
     case "unparsed-remainder":
-      return { text: `無法辨識「${q[0]}」，這段沒有被翻譯`, level: "bad" };
+      return { text: `無法辨識「${w.text}」，這段沒有被翻譯`, level: "bad" };
   }
 }
 
@@ -206,7 +201,7 @@ function run(): void {
   // text. Consume one remainder per fragment rather than filtering by value, so
   // a road that happens to read the same as the remainder keeps its own note.
   const remainders = warnings.flatMap((w) =>
-    w.code === "unparsed-remainder" ? (UNPARSED.exec(w.message)?.[1] ?? quoted(w.message)) : [],
+    w.code === "unparsed-remainder" ? (w.text ?? []) : [],
   );
   for (const fragment of result.unresolved) {
     const at = remainders.indexOf(fragment);
@@ -215,6 +210,14 @@ function run(): void {
       continue;
     }
     addIssue(`「${fragment}」不在官方清單，英文是依字音推估的`, "warn");
+  }
+  // A number no real address would carry makes its own segment unknown without
+  // putting anything in `unresolved` or raising a warning. The segment is
+  // underlined either way, but the list should say why.
+  for (const segment of result.segments) {
+    if (segment.confidence !== "unknown") continue;
+    if (result.unresolved.some((fragment) => segment.value.includes(fragment))) continue;
+    addIssue(`「${segment.value}」不是合理的${PART_LABEL[segment.key]}，請人工確認`, "bad");
   }
 
   errorEl.hidden = true;

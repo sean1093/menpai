@@ -48,17 +48,25 @@ const ROOM = new RegExp(`^(${UNIT})室`);
 const VILLAGE = /^([^0-9巷弄號段路街鄰]{1,6}[村里])/;
 const ROAD_FALLBACK = /^([^0-9]{1,12}?(?:大道|路|街|巷|弄))/;
 const AREA_SUFFIX = /[市鄉鎮區]$/;
+/** A token that needs something in front of it; left at the start, it was orphaned. */
+const ORPHANED_MARKER = /^[巷弄衖段號樓室]/;
 
 /** Consumes `length` characters plus any whitespace that follows. */
 function advance(text: string, length: number): string {
   return text.slice(length).replace(/^\s+/, "");
 }
 
-/** `"十二"` → `"12"`, `"12"` → `"12"`. Callers only pass text matched by `NUM`. */
+/**
+ * `"十二"` → `"12"`, `"12"` → `"12"`. Callers only pass text matched by `NUM`.
+ *
+ * Past 15 digits `Number()` overflows to `Infinity` or silently loses
+ * precision, so anything that long is kept exactly as written — inventing a
+ * value here would put `Infinity` in an address.
+ */
 function digits(text: string): string {
-  if (/^\d+$/.test(text)) return String(Number(text));
+  if (/^\d+$/.test(text)) return text.length <= 15 ? String(Number(text)) : text;
   const n = zhNumeralToInt(text);
-  return n === null ? text : String(n);
+  return n === null || !Number.isSafeInteger(n) ? text : String(n);
 }
 
 /** A unit designator matched by {@link UNIT}: a number, or a letter kept upper-case. */
@@ -101,6 +109,8 @@ function matchArea(
     warnings.push({
       code: "area-alias",
       message: `"${text.slice(0, best.length)}" was read as "${best.area.zh}".`,
+      text: text.slice(0, best.length),
+      resolved: best.area.zh,
     });
   }
   return { area: best.area, length: best.length };
@@ -116,7 +126,12 @@ function locate(
   const city = findCity(alias ?? cityToken);
   if (city) {
     if (alias) {
-      warnings.push({ code: "city-alias", message: `"${cityToken}" was read as "${alias}".` });
+      warnings.push({
+        code: "city-alias",
+        message: `"${cityToken}" was read as "${alias}".`,
+        text: cityToken,
+        resolved: alias,
+      });
     }
     const afterCity = text.slice(3).replace(/^\s+/, "");
     const skipped = text.length - 3 - afterCity.length;
@@ -161,6 +176,8 @@ function locate(
   warnings.push({
     code: "city-inferred-from-area",
     message: `City "${cityAt(first.city)?.zh ?? ""}" was inferred from "${first.zh}".`,
+    text: first.zh,
+    resolved: cityAt(first.city)?.zh ?? "",
   });
   return { cityIndex: first.city, area: first, consumed: first.zh.length };
 }
@@ -205,17 +222,43 @@ export function parse(input: string): ParseResult {
         message: `Postal code ${zip3} does not belong to ${parts.area ?? parts.city}${
           located.area ? ` (expected ${located.area.zip})` : ""
         }.`,
+        text: zip3,
+        ...(located.area ? { resolved: located.area.zip } : {}),
       });
     }
   }
 
   rest = normalizeSections(rest);
 
-  // Village: dictionary first, then shape. A longer road-dictionary hit wins (七里橋 is a road, not 七里 village).
+  // Village: dictionary first, then shape. A longer road-dictionary hit normally
+  // wins (七里橋 is a road, not 七里 village + 橋).
   const villageHit = longestPrefix(rest, villageEntry) ?? VILLAGE.exec(rest)?.[1];
   if (villageHit) {
     const roadHit = longestPrefix(rest, roadEntry);
-    if (!roadHit || roadHit.length <= villageHit.length) {
+    // …except that the official road list also carries compound
+    // "<village><place>" keys — 福星里福星 → "Fuxing, Fuxing Vil." — and a
+    // greedy match on one of those swallows a longer real road: 福星里福星北一街
+    // is 福星里 + 福星北一街, not the compound with 北一街 left stranded.
+    //
+    // Splitting is only safe under three conditions, and each one is load-bearing:
+    //
+    //  - the village must be a real one from the dictionary. 美村路 is an
+    //    official road, and the shape rule below happily reads 美村 as a
+    //    village, which would cut a genuine road in half.
+    //  - the road found after it must read further than the compound's own
+    //    tail, or there is nothing to gain.
+    //  - it must not orphan a structural marker. 塘興村坪頂東巷 splits into
+    //    坪頂東 — one character "further" — but leaves a 巷 with nothing in
+    //    front of it, where the compound reading takes 東巷 as the lane.
+    let splitsBetter = false;
+    if (roadHit?.startsWith(villageHit) && villageEntry(villageHit) !== undefined) {
+      const afterVillage = advance(rest, villageHit.length);
+      const splitRoad = longestPrefix(afterVillage, roadEntry);
+      const orphaned =
+        splitRoad === undefined || ORPHANED_MARKER.test(afterVillage.slice(splitRoad.length));
+      splitsBetter = !orphaned && (splitRoad?.length ?? 0) > roadHit.length - villageHit.length;
+    }
+    if (!roadHit || roadHit.length <= villageHit.length || splitsBetter) {
       parts.village = villageHit;
       rest = advance(rest, villageHit.length);
     }
@@ -289,7 +332,13 @@ export function parse(input: string): ParseResult {
   }
 
   if (rest.length > 0) {
-    warnings.push({ code: "unparsed-remainder", message: `Could not interpret "${rest}".` });
+    // No `resolved`: there is no replacement, which is exactly what tells this
+    // apart from a fragment the library guessed at.
+    warnings.push({
+      code: "unparsed-remainder",
+      message: `Could not interpret "${rest}".`,
+      text: rest,
+    });
   }
   return { ok: true, parts, unparsed: rest, warnings };
 }

@@ -62,6 +62,23 @@ const PAIRS: [string, string][] = [
   ["warn", "card"],
 ];
 
+/**
+ * Non-text boundaries and state indicators: WCAG 1.4.11 wants 3:1. These are
+ * separate from PAIRS because the threshold differs, and because they were the
+ * ones nobody was checking — the country toggle's state sat at 1.75:1, and the
+ * fill plus the knob position are its only indicators.
+ */
+const BOUNDARIES: [string, string][] = [
+  ["line-strong", "card"],
+  ["line-strong", "paper"],
+  ["line-strong", "well"],
+  // The switch knob against the unchecked track.
+  ["on-ink", "line-strong"],
+  ["ring", "card"],
+  ["ring", "paper"],
+  ["ring", "well"],
+];
+
 describe("site theme", () => {
   for (const [name, set] of [
     ["light", light],
@@ -69,11 +86,20 @@ describe("site theme", () => {
   ] as const) {
     describe(name, () => {
       it("defines every colour token", () => {
-        for (const [fg, bg] of PAIRS) {
+        for (const [fg, bg] of [...PAIRS, ...BOUNDARIES]) {
           expect(set[fg], `--${fg} missing in ${name}`).toBeDefined();
           expect(set[bg], `--${bg} missing in ${name}`).toBeDefined();
         }
       });
+
+      for (const [fg, bg] of BOUNDARIES) {
+        it(`--${fg} on --${bg} meets the 3:1 boundary threshold`, () => {
+          const ratio = contrast(set[fg] ?? "", set[bg] ?? "");
+          expect(ratio, `${set[fg]} on ${set[bg]} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+            3,
+          );
+        });
+      }
 
       for (const [fg, bg] of PAIRS) {
         it(`--${fg} on --${bg} meets AA`, () => {
@@ -110,6 +136,51 @@ describe("site theme", () => {
     expect(css).toMatch(/\.english \.seg-unknown \{[^}]*underline wavy/);
     expect(css).toMatch(/\.dot\.inferred \{[^}]*background: transparent/);
     expect(css).toMatch(/\.dot\.unknown \{[^}]*rotate\(45deg\)/);
+    // The issue list carries the same three severities and needs the same.
+    expect(css).toMatch(/\.issues li\.bad::before \{[^}]*rotate\(45deg\)/);
+    expect(css).toMatch(/\.issues li\.info::before \{[^}]*background: transparent/);
+  });
+
+  describe("focus rings", () => {
+    // Composited at 0.12 alpha the textarea ring was invisible, and the state
+    // was really being carried by its border-color.
+    it("are solid, never a wash", () => {
+      expect(css).not.toMatch(/rgba\(var\(--ring/);
+    });
+
+    // Naming each selector, because asserting the declaration merely *appears*
+    // lets any one control lose its ring while the others keep the test green.
+    const FOCUSABLE: [string, RegExp][] = [
+      // The spacer matters: without it the ring's inner edge sits on the
+      // control's own fill (--ink when checked, --line-strong on the switch
+      // track) at 1.60–2.55:1, and no single hue clears 3:1 against those and
+      // the card at once.
+      ["textarea:focus", /0 0 0 2px var\(--card\),\s*0 0 0 5px var\(--ring\)/],
+      [
+        "\\.segmented input:focus-visible \\+ span",
+        /0 0 0 2px var\(--card\),\s*0 0 0 5px var\(--ring\)/,
+      ],
+      [
+        "\\.switch input:focus-visible \\+ \\.switch-track",
+        /0 0 0 2px var\(--card\),\s*0 0 0 5px var\(--ring\)/,
+      ],
+      ["\\.chip:focus-visible", /outline: 3px solid var\(--ring\)/],
+      ["\\.clear:focus-visible", /outline: 3px solid var\(--ring\)/],
+      ["\\.primary:focus-visible", /outline: 3px solid var\(--ring\)/],
+      ["\\.choices button:focus-visible", /outline: 3px solid var\(--ring\)/],
+    ];
+    for (const [selector, declaration] of FOCUSABLE) {
+      it(`${selector.replace(/\\\\/g, "")} has one`, () => {
+        const blocks = [...css.matchAll(new RegExp(`${selector}[^{]*\\{([^}]*)\\}`, "g"))].map(
+          (m) => m[1] ?? "",
+        );
+        expect(blocks.length, `${selector} has no rule at all`).toBeGreaterThan(0);
+        expect(
+          blocks.some((b) => declaration.test(b)),
+          `${selector} lost its focus ring`,
+        ).toBe(true);
+      });
+    }
   });
 
   it("declares color-scheme, so UA-painted chrome follows the page", () => {

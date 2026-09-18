@@ -97,6 +97,23 @@ export type ParseWarningCode =
 export interface ParseWarning {
   code: ParseWarningCode;
   message: string;
+  /**
+   * The input fragment this warning is about: the outdated name, the district
+   * the city was inferred from, the postal code that did not match, or the text
+   * that could not be interpreted.
+   *
+   * It is what makes a warning actionable without reading `message` — in
+   * particular it is how you tell a fragment the library *guessed* at from one
+   * it *skipped*, since both appear in `FormatResult.unresolved`.
+   */
+  text?: string;
+  /**
+   * What the library used in its place, where that makes sense: the current
+   * name for an outdated one, the city inferred from a district, or the postal
+   * code the district actually has. Absent for `unparsed-remainder`, which has
+   * no replacement.
+   */
+  resolved?: string;
 }
 
 export type ParseErrorCode = "empty-input" | "city-not-found" | "area-ambiguous";
