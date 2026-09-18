@@ -2,7 +2,7 @@
   --paper: #f4f2ed;
   --card: #ffffff;
   --line: #e3dfd6;
-  --line-strong: #c9c3b8;
+  --line-strong: #8d887e;
   --ink: #2b2a28;
   --ink-soft: #6b675f;
   --ink-faint: #736e65;
@@ -19,8 +19,9 @@
   /* Text and knobs that sit on top of --ink. */
   --on-ink: #ffffff;
   --ink-hover: #1d1c1b;
-  /* Focus rings, as channels so the three alphas below stay one source of truth. */
-  --ring-rgb: 43, 42, 40;
+  /* Focus rings. Solid, not a wash: composited at 0.12 alpha the textarea ring
+     was invisible and the state was really carried by its border-color. */
+  --ring: #6b675f;
   --radius: 14px;
   --radius-sm: 10px;
   --tap: 56px;
@@ -142,7 +143,9 @@ textarea::placeholder {
 textarea:focus {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(var(--ring-rgb), 0.12);
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 5px var(--ring);
 }
 
 .clear {
@@ -162,6 +165,11 @@ textarea:focus {
 .clear:hover,
 .clear:focus-visible {
   background: var(--line);
+}
+
+.clear:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: -3px;
 }
 
 /* ---- Examples ---------------------------------------------------------- */
@@ -194,6 +202,12 @@ textarea:focus {
 .chip:focus-visible {
   border-color: var(--ink);
   color: var(--ink);
+}
+
+/* Without this the chips fall back to the UA ring, which ignores the theme. */
+.chip:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
 }
 
 /* ---- Segmented control ------------------------------------------------- */
@@ -261,7 +275,9 @@ textarea:focus {
 }
 
 .segmented input:focus-visible + span {
-  box-shadow: 0 0 0 3px rgba(var(--ring-rgb), 0.25);
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 5px var(--ring);
   z-index: 2;
 }
 
@@ -314,7 +330,9 @@ textarea:focus {
 }
 
 .switch input:focus-visible + .switch-track {
-  box-shadow: 0 0 0 3px rgba(var(--ring-rgb), 0.25);
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 5px var(--ring);
 }
 
 /* ---- Buttons ----------------------------------------------------------- */
@@ -338,7 +356,7 @@ textarea:focus {
 }
 
 .primary:focus-visible {
-  outline: 3px solid rgba(var(--ring-rgb), 0.35);
+  outline: 3px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -420,6 +438,10 @@ textarea:focus {
   border-top: 1px solid var(--line);
 }
 
+/*
+ * Filled disc / diamond / hollow ring, matching the confidence dots: severity
+ * must not be carried by colour alone here either.
+ */
 .issues li::before {
   content: "";
   position: absolute;
@@ -433,10 +455,13 @@ textarea:focus {
 
 .issues li.bad::before {
   background: var(--bad);
+  border-radius: 2px;
+  transform: rotate(45deg);
 }
 
 .issues li.info::before {
-  background: var(--line-strong);
+  background: transparent;
+  border: 3px solid var(--line-strong);
 }
 
 .details {
@@ -580,7 +605,7 @@ footer p {
 }
 
 .choices button:focus-visible {
-  outline: 3px solid rgba(var(--ring-rgb), 0.35);
+  outline: 3px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -615,7 +640,7 @@ footer p {
     --paper: #161513;
     --card: #201f1c;
     --line: #322f2a;
-    --line-strong: #4d483f;
+    --line-strong: #787063;
     --ink: #ece8e0;
     --ink-soft: #b0aa9e;
     --ink-faint: #8f8a80;
@@ -630,6 +655,6 @@ footer p {
     --on-ink: #161513;
     /* Not pure white: brighter than --ink on a near-black page haloes. */
     --ink-hover: #f6f3ee;
-    --ring-rgb: 236, 232, 224;
+    --ring: #b0aa9e;
   }
 }
