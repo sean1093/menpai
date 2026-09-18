@@ -546,6 +546,45 @@ describe("parse", () => {
     expect(result.error.candidates).toBeUndefined();
   });
 
+  it("carries the fragment each warning is about, without needing the message", () => {
+    // Consumers were parsing the English `message` to recover these, which
+    // coupled them to wording the library is free to change.
+    const alias = parse("桃園縣中壢市中央西路二段30號");
+    expect(alias.ok).toBe(true);
+    if (!alias.ok) return;
+    expect(alias.warnings.map((w) => [w.code, w.text, w.resolved])).toEqual([
+      ["city-alias", "桃園縣", "桃園市"],
+      ["area-alias", "中壢市", "中壢區"],
+    ]);
+
+    const inferred = parse("大同區二仁路二段9號");
+    expect(inferred.ok).toBe(true);
+    if (!inferred.ok) return;
+    expect(inferred.warnings.map((w) => [w.code, w.text, w.resolved])).toEqual([
+      ["city-inferred-from-area", "大同區", "臺北市"],
+    ]);
+
+    const zip = parse("999臺北市大安區忠孝東路四段1號");
+    expect(zip.ok).toBe(true);
+    if (!zip.ok) return;
+    expect(zip.warnings.map((w) => [w.code, w.text, w.resolved])).toEqual([
+      ["postal-code-mismatch", "999", "106"],
+    ]);
+  });
+
+  it("marks a skipped fragment apart from a guessed one", () => {
+    // The distinction the field exists for: both end up in
+    // FormatResult.unresolved, and only the skipped one has a warning.
+    const result = parse("臺北市信義區市府路1號市政大樓");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const remainder = result.warnings.find((w) => w.code === "unparsed-remainder");
+    expect(remainder?.text).toBe("市政大樓");
+    // Nothing replaced it, so there is no `resolved`.
+    expect(remainder?.resolved).toBeUndefined();
+    expect(result.unparsed).toBe("市政大樓");
+  });
+
   it("rejects empty input", () => {
     expect(parse("   ")).toEqual({
       ok: false,
