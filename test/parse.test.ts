@@ -257,6 +257,28 @@ const cases: Case[] = [
     parts: { city: "新北市", area: "樹林區", road: "七里橋", number: "1" },
   },
   {
+    // 七里 is not in the village dictionary — the shape rule invents it — so the
+    // split must not fire even though 橋北巷 is a road somewhere in the country.
+    name: "七里橋keeps its road when a named lane follows",
+    input: "新北市樹林區七里橋北巷1號",
+    parts: { city: "新北市", area: "樹林區", road: "七里橋", lane: "北巷", number: "1" },
+  },
+  {
+    // 美村路 is an official road in Taichung and 美村 is not a village; cutting
+    // it in half would invent a village and mangle a real address.
+    name: "a real road ending in 村 is not cut in half",
+    input: "臺中市西區美村路西巷1號",
+    parts: { city: "臺中市", area: "西區", road: "美村路", lane: "西巷", number: "1" },
+  },
+  {
+    // 塘興村 *is* a dictionary village and 塘興村坪頂 *is* a compound key, so the
+    // guard here is the orphaned 巷: splitting to 坪頂東 reads one character
+    // further but strands the marker the compound reading uses as a lane.
+    name: "a split that would orphan a lane marker is refused",
+    input: "臺北市中正區塘興村坪頂東巷1號",
+    parts: { city: "臺北市", area: "中正區", road: "塘興村坪頂", lane: "東巷", number: "1" },
+  },
+  {
     name: "unknown road falls back to shape",
     input: "臺北市信義區不存在的路99號",
     parts: { city: "臺北市", area: "信義區", road: "不存在的路", number: "99" },

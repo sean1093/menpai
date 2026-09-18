@@ -48,6 +48,8 @@ const ROOM = new RegExp(`^(${UNIT})室`);
 const VILLAGE = /^([^0-9巷弄號段路街鄰]{1,6}[村里])/;
 const ROAD_FALLBACK = /^([^0-9]{1,12}?(?:大道|路|街|巷|弄))/;
 const AREA_SUFFIX = /[市鄉鎮區]$/;
+/** A token that needs something in front of it; left at the start, it was orphaned. */
+const ORPHANED_MARKER = /^[巷弄衖段號樓室]/;
 
 /** Consumes `length` characters plus any whitespace that follows. */
 function advance(text: string, length: number): string {
@@ -220,13 +222,24 @@ export function parse(input: string): ParseResult {
     // "<village><place>" keys — 福星里福星 → "Fuxing, Fuxing Vil." — and a
     // greedy match on one of those swallows a longer real road: 福星里福星北一街
     // is 福星里 + 福星北一街, not the compound with 北一街 left stranded.
-    // Take the village when doing so reaches a road that reads further than the
-    // compound's own tail; 七里橋 is unaffected, since nothing follows 七里.
+    //
+    // Splitting is only safe under three conditions, and each one is load-bearing:
+    //
+    //  - the village must be a real one from the dictionary. 美村路 is an
+    //    official road, and the shape rule below happily reads 美村 as a
+    //    village, which would cut a genuine road in half.
+    //  - the road found after it must read further than the compound's own
+    //    tail, or there is nothing to gain.
+    //  - it must not orphan a structural marker. 塘興村坪頂東巷 splits into
+    //    坪頂東 — one character "further" — but leaves a 巷 with nothing in
+    //    front of it, where the compound reading takes 東巷 as the lane.
     let splitsBetter = false;
-    if (roadHit?.startsWith(villageHit)) {
+    if (roadHit?.startsWith(villageHit) && villageEntry(villageHit) !== undefined) {
       const afterVillage = advance(rest, villageHit.length);
       const splitRoad = longestPrefix(afterVillage, roadEntry);
-      splitsBetter = (splitRoad?.length ?? 0) > roadHit.length - villageHit.length;
+      const orphaned =
+        splitRoad === undefined || ORPHANED_MARKER.test(afterVillage.slice(splitRoad.length));
+      splitsBetter = !orphaned && (splitRoad?.length ?? 0) > roadHit.length - villageHit.length;
     }
     if (!roadHit || roadHit.length <= villageHit.length || splitsBetter) {
       parts.village = villageHit;
