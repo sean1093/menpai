@@ -211,6 +211,14 @@ function run(): void {
     }
     addIssue(`「${fragment}」不在官方清單，英文是依字音推估的`, "warn");
   }
+  // A number no real address would carry makes its own segment unknown without
+  // putting anything in `unresolved` or raising a warning. The segment is
+  // underlined either way, but the list should say why.
+  for (const segment of result.segments) {
+    if (segment.confidence !== "unknown") continue;
+    if (result.unresolved.some((fragment) => segment.value.includes(fragment))) continue;
+    addIssue(`「${segment.value}」不是合理的${PART_LABEL[segment.key]}，請人工確認`, "bad");
+  }
 
   errorEl.hidden = true;
   resultEl.hidden = false;
