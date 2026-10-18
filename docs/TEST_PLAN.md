@@ -75,27 +75,36 @@ always split, or never did.
    the rest of the address having vanished.
 4. **Replay the corpus, don't sample it.** The vendored data is the only
    independent oracle in the repo; 30,030 rows cost 300 ms.
-5. **A number is never the goal.** `src/bin.ts` reads as 0% because
-   `bin.test.ts` spawns it as a process, which is the only way to test a
-   held-open stdin. It is excluded from coverage rather than "fixed".
+5. **A number is never the goal.** `src/bin.ts` would read as 0% because
+   `bin.test.ts` spawns it as a process — the only way to test a held-open
+   stdin — and a subprocess is invisible to the coverage provider. It is
+   excluded from the report rather than "fixed" by replacing those tests with
+   in-process ones that cannot see the bug that actually shipped.
 6. **Never skip, disable or quarantine a test to get green.**
 
 ## Coverage
 
-`npm run coverage`. Measured after this plan was written:
+`npm run coverage`, and one CI leg runs it:
 
 | | Statements | Branches |
 | --- | --- | --- |
-| `src/` | 99.81% | 92.95% |
+| `src/` | 100% | 93.12% |
 | `site/src/` | 98.05% | 85.52% |
-| Overall | 99.49% | 92.11% |
+| Overall | 99.63% | 92.27% |
 
 Excluded, deliberately: `src/types.ts` (declarations only) and `src/bin.ts` (see
 rule 5).
 
-Coverage is a smoke detector, not a grade. It found the UI sitting at 0% — 322
-lines including the worst bug of the cycle — which was worth knowing. It cannot
-tell whether an assertion is strong enough, which is what rules 2 and 3 are for.
+The configured thresholds — 97% statements, 88% branches — are a floor a few
+points below those numbers, not a target. They exist for one failure: the UI sat
+at 0% and nothing said so. Losing that file's tests again takes overall
+statements to 81%, which trips them.
+
+Coverage is a smoke detector, not a grade. It found the UI at 0% — 322 lines
+including the worst bug of the cycle — which was worth knowing. It cannot tell
+whether an assertion is strong enough, which is what rules 2 and 3 are for: the
+first version of the codec delimiter check in this very PR held four passing
+assertions over a table that had been silently corrupted.
 
 ## Gap register
 
@@ -110,8 +119,9 @@ Known and accepted, highest-risk first. These are the things to pick up next.
 | 5 | `site/src/main.ts:303-307`, the service-worker registration | Low | Guarded by `import.meta.env.PROD`, unreachable under test |
 | 6 | `site/src/main.ts:178`, the "ambiguous with no candidates" message | Low — likely dead | `candidates` is documented as never empty for `area-ambiguous`. Either prove it unreachable and delete, or keep as defence and leave uncovered |
 | 7 | `--country` is accepted but absent from `--help` | Low | Covered by a test; the help text is the thing to fix |
-| 8 | `encodeList` does not escape tab or newline in a key | Low — latent | No official name contains either, and `codec.test.ts` asserts that on the shipped data. A future source file with a stray tab would corrupt every entry after it, surfacing as mangled addresses rather than a build error |
-| 9 | No performance regression test | Low | The corpus replays would show a gross slowdown as a timeout, nothing finer |
+| 8 | `encodeList` does not escape tab or newline in a key | Low — latent, now detected | A tab inside a Chinese name splits it into a shorter name plus a fabricated English override, and the damaged table still re-encodes byte-for-byte. `codec.test.ts` detects it by keeping the two columns apart — no Han character in the English, no Latin letter in the Chinese — rather than by looking for a delimiter, which cannot see it. Hardening the encoder to throw is still the better fix |
+| 9 | Two official road names carry full-width digits in their English | Low — data, not code | `Nanshi Sec. １, Zhongfeng Rd.` and `147th N. ４th Ln., Minzu St.` come out of the source file that way, and will print as-is. Normalizing them in `scripts/build-data.ts` would diverge from the official spelling, so this needs a decision rather than a patch |
+| 10 | No performance regression test | Low | The corpus replays would show a gross slowdown as a timeout, nothing finer |
 
 ## Running things
 

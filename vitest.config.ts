@@ -18,6 +18,24 @@ export default defineConfig({
         // number by replacing those tests with in-process ones.
         "src/bin.ts",
       ],
+      /*
+       * A floor, not a target. It sits a few points under the measured numbers
+       * (99.63% statements, 92.26% branches) so that ordinary work does not
+       * trip it, and it is here for one specific failure: `site/src/main.ts`
+       * sat at 0% — 322 lines, including the worst bug of the 0.2.0 cycle —
+       * and nothing said so. Losing that file again drops overall statements
+       * to roughly 73%, which this catches.
+       *
+       * Raising these to chase 100% would invite the thing rule 3 of
+       * docs/TEST_PLAN.md warns about: assertions written to touch lines
+       * rather than to prove behaviour.
+       */
+      thresholds: {
+        statements: 97,
+        branches: 88,
+        functions: 97,
+        lines: 97,
+      },
     },
   },
   resolve: {

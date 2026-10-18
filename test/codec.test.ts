@@ -16,15 +16,8 @@ import { CHARS } from "../src/data/chars.js";
 import { ROADS } from "../src/data/roads.js";
 import { VILLAGES } from "../src/data/villages.js";
 
-/**
- * The format is line- and tab-delimited with no escaping, so a name containing
- * either character would not survive a round-trip. No official name does. This
- * is asserted on the shipped data rather than guarded in the encoder, because
- * the data is the thing that could change: a future source file with a stray
- * tab would corrupt every entry after it, and the failure would surface as
- * mangled addresses rather than as a build error.
- */
-const DELIMITERS = /[\t\n]/;
+/** Han characters, which a Chinese name has and an English one does not. */
+const CJK = /[㐀-䶿一-鿿]/;
 
 describe("codec", () => {
   describe.each([
@@ -40,15 +33,45 @@ describe("codec", () => {
       expect(encodeList(table)).toBe(raw);
     });
 
-    it("holds no key or value containing a delimiter", () => {
-      expect([...table.keys()].filter((k) => DELIMITERS.test(k))).toEqual([]);
-      expect([...table.values()].filter((v) => DELIMITERS.test(v))).toEqual([]);
+    /*
+     * The format is tab- and newline-delimited with no escaping, so a Chinese
+     * name containing a tab silently splits into a shorter name plus a
+     * fabricated English override: `中山\t路` with no override of its own
+     * decodes as 中山 → "路". The obvious guard — no decoded key or value
+     * contains a tab — cannot see this, because by then the tab has become
+     * structure rather than content, and the damaged table re-encodes
+     * byte-for-byte too. The invariants below are the ones that notice.
+     */
+    it("keeps Chinese out of the English column", () => {
+      const chinese = [...table.entries()].filter(([, en]) => en !== "" && CJK.test(en));
+      expect(chinese).toEqual([]);
+    });
+
+    it("keeps English out of the Chinese column", () => {
+      expect([...table.keys()].filter((zh) => /[A-Za-z]/.test(zh))).toEqual([]);
+    });
+
+    it("has at most one tab per line, so no name carried a delimiter in", () => {
+      const lines = raw.split("\n");
+      expect(lines.filter((line) => (line.match(/\t/g) ?? []).length > 1)).toEqual([]);
+      expect(lines).toHaveLength(table.size);
     });
 
     it("is sorted, which is what makes front-coding worth anything", () => {
       const keys = [...table.keys()];
       expect(keys).toEqual([...keys].sort());
     });
+  });
+
+  it("a name carrying a tab is detectable, which is why the checks above exist", () => {
+    // Demonstrates the failure the shipped-table assertions are guarding
+    // against, so the reason for them is not just a comment. The encoder does
+    // not reject such a name — a future source file is where one would come
+    // from, and this is what would catch it.
+    const damaged = decodeList(encodeList(new Map([["中山\t路", ""]])));
+    expect(damaged.get("中山")).toBe("路");
+    expect(damaged.has("中山\t路")).toBe(false);
+    expect([...damaged.values()].some((en) => CJK.test(en))).toBe(true);
   });
 
   it("round-trips the shipped character readings", () => {

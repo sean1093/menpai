@@ -42,6 +42,21 @@ jobs:
       - run: npm ci
       - run: npm run build:site
 
+  coverage:
+    # The thresholds in vitest.config.ts only bite if something runs them, and
+    # the check job above runs `npm test`, which does not. One leg on one Node
+    # version is enough: this guards against a whole file losing its tests, not
+    # against a line.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run coverage
+
   data-is-current:
     # The committed src/data must be exactly what scripts/build-data.ts produces.
     runs-on: ubuntu-latest

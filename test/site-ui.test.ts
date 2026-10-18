@@ -16,13 +16,19 @@
  * @vitest-environment jsdom
  */
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Under the jsdom environment `import.meta.url` is the document's http URL, not
-// a file one, so the fixture is anchored to the project root instead. Vitest
-// runs with the config's directory as the working directory.
-const html = readFileSync(resolve(process.cwd(), "site/index.html"), "utf8");
+// `import.meta.url` is a file URL here, but the *global* URL under jsdom
+// resolves a relative path against the document origin rather than the base it
+// is given — `new URL("../site/index.html", import.meta.url)` comes out as
+// http://localhost:3000/site/index.html. So the path is derived through
+// node:url instead, which keeps this independent of the working directory.
+const html = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), "../site/index.html"),
+  "utf8",
+);
 const BODY = /<body[^>]*>([\s\S]*)<\/body>/i.exec(html)?.[1];
 
 /** Reseed the document and run the module against it. */
