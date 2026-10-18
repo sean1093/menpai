@@ -343,4 +343,36 @@ describe("format: romanization", () => {
       );
     }
   });
+
+  describe("names it has no official spelling for", () => {
+    // Both of these fall through to the derivation rules. They are the only
+    // paths in format() that nothing reached, and they are what a caller sees
+    // when they hand over a place this package has never heard of — so the
+    // behaviour is "romanize it and say so", never "drop it".
+    it("romanizes a section that is not a number", () => {
+      const r = format(
+        { city: "臺北市", area: "大安區", road: "忠孝東路", section: "甲", number: "1" },
+        { country: false },
+      );
+      expect(r.english).toBe("No. 1, Sec. Jia, Zhongxiao E. Rd., Da'an Dist., Taipei City 106");
+      expect(r.confidence).toBe("inferred");
+      expect(r.segments.find((s) => s.key === "section")?.confidence).toBe("inferred");
+    });
+
+    it("romanizes a city it does not know, taking City/County from the suffix", () => {
+      const city = format({ city: "虛構市", road: "中山路", number: "1" }, { country: false });
+      expect(city.english).toBe("No. 1, Zhongshan Rd., Xugou City");
+      expect(city.confidence).toBe("inferred");
+
+      expect(
+        format({ city: "虛構縣", road: "中山路", number: "1" }, { country: false }).english,
+      ).toBe("No. 1, Zhongshan Rd., Xugou County");
+
+      // With neither 市 nor 縣 to go on there is no suffix to add, and the name
+      // is romanized whole rather than having its last character eaten.
+      expect(
+        format({ city: "虛構", road: "中山路", number: "1" }, { country: false }).english,
+      ).toBe("No. 1, Zhongshan Rd., Xugou");
+    });
+  });
 });

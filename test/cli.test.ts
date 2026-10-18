@@ -39,6 +39,14 @@ describe("cli", () => {
       );
     });
 
+    it("accepts --country, which is the default", () => {
+      // Undocumented: --help lists only --no-country. It is accepted so that a
+      // generated command line can pass the flag explicitly, and it must not
+      // become an "unknown option" by accident.
+      expect(runCli(["--country", TAIPEI]).stdout).toBe(`${TAIPEI_EN}\n`);
+      expect(runCli(["--country", TAIPEI]).code).toBe(0);
+    });
+
     it("trims the postal code", () => {
       const r = runCli(["--postal-code", "3", "106070台北市大安區忠孝東路四段1號"]);
       expect(r.stdout).toContain("Taipei City 106,");
