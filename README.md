@@ -196,6 +196,18 @@ Beyond these: unit tests per grammar rule, a contract test over the public resul
 2. Copy its output verbatim into `expected` for the matching case in `test/fixtures/golden.json`, and add `verifiedAt` (ISO date) and `source`. Both are required — when the data edition changes (currently 113/01) they are what tells you which cases need re-checking.
 3. Raise `VERIFIED_FLOOR` in `test/golden.test.ts` by one. Never lower it.
 
+For more than one or two, steps 2 and 3 are done for you:
+
+```sh
+npm run golden:worksheet > todo.tsv   # the unverified inputs, one per row
+# look each up, paste the tool's output into the official_english column
+npm run golden:ingest -- todo.tsv     # fills the JSON, raises the floor, updates this README
+```
+
+A partly filled sheet is fine — blank rows stay unverified, so the work can be done in sittings. `ingest` refuses a row that cannot have come from the tool (empty, still Chinese, not an address), refuses to quietly overwrite an answer that was already verified differently, and prints every case where menpai disagrees with the tool.
+
+The worksheet deliberately does **not** show you menpai's current output. The only reason to open the official tool is to get a judgement that does not come from this codebase, and a filled-in answer beside the empty box invites confirming it rather than reading it. One copied row is indistinguishable from a verified one afterwards, and the file is worth nothing if its contents might be menpai's own.
+
 If the address is one menpai cannot resolve confidently — a road outside the official list — add `"confidence": "inferred"` (or `"unknown"`) to the case. Those are the most valuable cases to verify, because the fallback spelling is exactly what has no official reference.
 
 If the library disagrees with the tool, that is a bug worth an issue rather than an `expected` bent to fit.

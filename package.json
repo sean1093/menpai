@@ -64,6 +64,8 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "size": "node scripts/size.mjs",
+    "golden:worksheet": "tsx scripts/golden.ts worksheet",
+    "golden:ingest": "tsx scripts/golden.ts ingest",
     "changeset": "changeset",
     "version": "changeset version",
     "prepublishOnly": "npm run build",
