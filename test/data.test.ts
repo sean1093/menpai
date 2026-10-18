@@ -3,31 +3,11 @@
  * byte-for-byte. This pins the derivation rules to the official data: a rule
  * change that alters any known road, village, or district fails here.
  */
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { roadEntry } from "../src/dict.js";
 import { format } from "../src/index.js";
 import { normalizeSections, normalizeZh } from "../src/text.js";
-
-const read = (name: string) =>
-  readFileSync(new URL(`../data/source/${name}`, import.meta.url), "utf8");
-
-function csvRows(text: string): [string, string][] {
-  const rows: [string, string][] = [];
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim().replace(/^"|"$/g, "");
-    if (!line) continue;
-    const comma = line.indexOf(",");
-    if (comma === -1) continue;
-    const zh = line.slice(0, comma);
-    const en = line
-      .slice(comma + 1)
-      .replace(/^"+|"+$/g, "")
-      .replace(/""/g, '"');
-    rows.push([zh, en]);
-  }
-  return rows;
-}
+import { csvRows, readSource as read } from "./helpers/official-data.js";
 
 const normalizeEn = (en: string) =>
   en

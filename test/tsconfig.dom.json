@@ -1,0 +1,17 @@
+{
+  // test/site-ui.test.ts drives site/src/main.ts in a DOM, so it needs the DOM
+  // lib and Vite's import.meta.env types. The root config omits both on purpose
+  // — src/ must not depend on a browser global — so this file is checked here
+  // and excluded there.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client"],
+    // The test imports site/src/main.ts by its real path, because the module
+    // runs on import and has nothing to export. Safe here: noEmit is set.
+    "allowImportingTsExtensions": true,
+    "paths": { "menpai": ["../src/index.ts"] }
+  },
+  "include": ["site-ui.test.ts"],
+  "exclude": []
+}

@@ -177,7 +177,8 @@ Romanization applies to names that are not conventional: `hanyu` (default, the o
 
 ## Verification
 
-- **Official data replay** — every one of the 30,030 road rows, 8,369 village / named-lane rows and 371 district rows of the vendored Chunghwa Post files is pushed through `format()` and must come back byte-for-byte (`test/data.test.ts`). The fallback rules are pinned to the official spellings.
+- **Official data replay, out** — every one of the 30,030 road rows, 8,369 village / named-lane rows and 371 district rows of the vendored Chunghwa Post files is pushed through `format()` and must come back byte-for-byte (`test/data.test.ts`). The fallback rules are pinned to the official spellings.
+- **Official data replay, in** — the same names go back through `parse()` as whole addresses, and the parsed parts are reassembled and compared, so a name that parses into something incomplete fails rather than being quietly tolerated (`test/data-parse.test.ts`). This covers the parser, which the replay above does not: lowering one internal constant passes every other test in the suite and silently drops the house number from five real road names. The 257 compound `<village><place>` road keys are pinned in both directions.
 - **Property-based** — random combinations of real districts, roads, villages and numbers are written out in random spellings (臺/台, Chinese / full-width numerals, `3F`, `1-1號`, stray spaces and commas), parsed back, and must format identically (`fast-check`, `test/roundtrip.property.test.ts`).
 - **Golden cases against the official web tool** — `test/fixtures/golden.json` holds addresses covering every city, multi-reading roads, sections, lanes, alleys, floors, suffixes, same-named districts, Tongyong, and roads outside the official list. Their `expected` values are filled in by hand from the Chunghwa Post translation tool, which a human has to operate. **Status: 0 of 127 verified.** The test run states the count, so it is never in doubt, and a test checks that number against this sentence:
 
@@ -186,6 +187,8 @@ Romanization applies to names that are not conventional: `hanyu` (default, the o
   ```
 
   A case whose `expected` is still `null` cannot assert the official spelling, but it is not inert: **every** case, verified or not, must still parse, produce a non-empty address, and come back at the confidence it declares, so a fixture that regresses fails CI today. The file is guarded too — every city must be reached by a case that is a real street address, there are no duplicates, dates must be real dates, and the verified count cannot fall below `VERIFIED_FLOOR`. Resetting a verified case to `null` therefore also means editing `test/golden.test.ts`, where a reviewer will see it.
+
+Beyond these: unit tests per grammar rule, a contract test over the public result shape, the CLI tested both as a pure function and as a spawned process, and the web UI driven in a DOM against the real `site/index.html`. [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) maps every layer to what it is responsible for, states the rules the suite is held to, and keeps a register of the known gaps — the largest being the golden count above.
 
 ### Contributing a verified case
 
