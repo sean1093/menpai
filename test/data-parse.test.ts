@@ -19,8 +19,10 @@
  */
 import { describe, expect, it } from "vitest";
 import { decodeList } from "../src/codec.js";
+import { AREAS, CITIES } from "../src/data/places.js";
 import { ROADS } from "../src/data/roads.js";
 import { VILLAGES } from "../src/data/villages.js";
+import { cityAt } from "../src/dict.js";
 import { parse } from "../src/index.js";
 import { normalizeSections, normalizeZh } from "../src/text.js";
 import type { AddressParts } from "../src/types.js";
@@ -169,6 +171,44 @@ describe("official data round-trips through parse()", () => {
       expect(checked).toBeGreaterThan(100);
       expect(failures.slice(0, 20)).toEqual([]);
       expect(failures).toHaveLength(0);
+    });
+  });
+
+  describe("place table integrity", () => {
+    /*
+     * Every district row points at its city by index. Nothing checked that the
+     * index resolves, and the consequence is not a crash: `parse()` builds the
+     * `area-ambiguous` candidate list by mapping those indices to city names
+     * and dropping the ones that come back empty, so a dangling index silently
+     * shortens the list of cities offered to the user. If every candidate for a
+     * district dangled, the error would carry no candidates at all — which is
+     * the state the web UI has a message for and which is otherwise
+     * unreachable (`site/src/main.ts:178`).
+     */
+    it("points every district at a city that exists", () => {
+      const dangling = AREAS.filter((row) => cityAt(row[0]) === undefined).map(
+        (row) => `${row[1]} -> city index ${row[0]}`,
+      );
+      expect(dangling).toEqual([]);
+      expect(AREAS.length).toBeGreaterThan(360);
+    });
+
+    it("gives every city at least one row", () => {
+      const without = CITIES.map(([zh], i) => [zh, AREAS.filter((r) => r[0] === i).length] as const)
+        .filter(([, count]) => count === 0)
+        .map(([zh]) => zh);
+      expect(without).toEqual([]);
+    });
+
+    it("leaves exactly one district name empty, and it is the one with no addresses", () => {
+      // 釣魚臺 carries a single placeholder row — no district name, just a zip —
+      // because it has no deliverable street addresses. Anywhere else an empty
+      // name would mean a district that cannot be matched or printed, so the
+      // exception is pinned to the one city rather than allowed in general.
+      const nameless = AREAS.filter((row) => row[1] === "").map(
+        (row) => cityAt(row[0])?.zh ?? `city index ${row[0]}`,
+      );
+      expect(nameless).toEqual(["釣魚臺"]);
     });
   });
 });

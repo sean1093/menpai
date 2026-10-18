@@ -35,7 +35,7 @@ the output the bug produced.
 | Unit — romanization | `romanize.test.ts` | Hanyu / Tongyong / Wade-Giles, tone and apostrophe rules |
 | Contract | `translate.test.ts` | The public result shape: `error`, `warnings`, `segments`, `unresolved` |
 | Corpus — format | `data.test.ts` | All 30,030 official road rows, 8,369 village rows, 371 districts out of `format()` byte-for-byte |
-| Corpus — parse | `data-parse.test.ts` | The same corpus *into* `parse()`, reassembled and compared |
+| Corpus — parse | `data-parse.test.ts` | The same corpus *into* `parse()`, reassembled and compared; plus referential integrity of the district/city tables |
 | Property | `roundtrip.property.test.ts` | Generated addresses survive parse → format → parse |
 | Golden | `golden.test.ts` | Hand-verified official output, with a floor that can only rise |
 | CLI | `cli.test.ts` | `runCli` as a pure function: flags, exit codes, stdout vs stderr |
@@ -117,7 +117,7 @@ Known and accepted, highest-risk first. These are the things to pick up next.
 | 3 | No test runs the published artefact's type declarations | Medium — `exports`/`types` wiring breaks silently; `scripts/check-dist.mjs` checks file presence, not that a consumer's `tsc` resolves | Would need a fixture package that imports the tarball |
 | 4 | Service worker (`site/sw-template.js`) has no runtime test | Medium — a wrong cache strategy strands users on a stale dictionary offline | Build-time guards in `site/vite.config.ts` check the precache list; install/activate/fetch behaviour is unexercised |
 | 5 | `site/src/main.ts:303-307`, the service-worker registration | Low | Guarded by `import.meta.env.PROD`, unreachable under test |
-| 6 | `site/src/main.ts:178`, the "ambiguous with no candidates" message | Low — likely dead | `candidates` is documented as never empty for `area-ambiguous`. Either prove it unreachable and delete, or keep as defence and leave uncovered |
+| 6 | `site/src/main.ts:178`, the "ambiguous with no candidates" message | Low — unreachable, kept as defence | Traced rather than guessed: `parse()` returns `area-ambiguous` only with two or more candidates, and builds the city list by mapping each to a name and dropping the empties, so an empty list needs a district row pointing at a city that does not exist. `data-parse.test.ts` now asserts none does, which makes the branch unreachable *and* keeps it worth having if the data ever regresses. Leave it uncovered |
 | 7 | `--country` is accepted but absent from `--help` | Low | Covered by a test; the help text is the thing to fix |
 | 8 | `encodeList` does not escape tab or newline in a key | Low — latent, now detected | A tab inside a Chinese name splits it into a shorter name plus a fabricated English override, and the damaged table still re-encodes byte-for-byte. `codec.test.ts` detects it by keeping the two columns apart — no Han character in the English, no Latin letter in the Chinese — rather than by looking for a delimiter, which cannot see it. Hardening the encoder to throw is still the better fix |
 | 9 | Two official road names carry full-width digits in their English | Low — data, not code | `Nanshi Sec. １, Zhongfeng Rd.` and `147th N. ４th Ln., Minzu St.` come out of the source file that way, and will print as-is. Normalizing them in `scripts/build-data.ts` would diverge from the official spelling, so this needs a decision rather than a patch |
