@@ -19,7 +19,7 @@
  * where menpai disagrees with the tool. It never edits an answer to make a test
  * pass: a disagreement is a bug to look at, which is the reason the file exists.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { translate } from "../src/index.js";
@@ -39,6 +39,7 @@ const here = (relative: string) => fileURLToPath(new URL(relative, import.meta.u
 const GOLDEN = here("../test/fixtures/golden.json");
 const TEST = here("../test/golden.test.ts");
 const README = here("../README.md");
+const PLAN = here("../docs/TEST_PLAN.md");
 
 const SOURCE = "https://www.post.gov.tw/post/internet/Postal/index.jsp?ID=207";
 const CJK = /[㐀-䶿一-鿿]/;
@@ -104,25 +105,46 @@ function reject(english: string, where: string): string | undefined {
   return undefined;
 }
 
+/** Only an explicit yes. `REPLACE=0` must not enable a destructive overwrite. */
+const replaceRequested = (): boolean => /^(1|true|yes)$/i.test(process.env.REPLACE ?? "");
+
 function ingest(file: string | undefined): void {
   if (!file) die("ingest needs a TSV file: npm run golden:ingest -- filled.tsv");
-  const lines = read(resolve(process.cwd(), file))
+  const path = resolve(process.cwd(), file);
+  // The usual way to get here is `worksheet` having returned early without
+  // writing anything; a raw ENOENT stack trace explains none of that.
+  if (!existsSync(path)) die(`no such file: ${file}`);
+
+  // Numbered before filtering, so a complaint about "row 7" means line 7 of the
+  // file the reader is looking at.
+  const rows = read(path)
     .split(/\r?\n/)
-    .filter((line) => line.trim() !== "")
+    .map((text, index) => ({ text, line: index + 1 }))
+    .filter((row) => row.text.trim() !== "")
     // `npm run … > sheet.tsv` captures npm's own banner on stdout. Dropping
-    // those two lines beats failing the whole file over them.
-    .filter((line) => !/^> /.test(line));
-  if (lines.length === 0) die("the file is empty");
-  if (lines[0]?.startsWith("input\t")) lines.shift();
+    // those lines beats failing the whole file over them.
+    .filter((row) => !/^> /.test(row.text))
+    .filter((row) => !row.text.startsWith("input\t"));
+  if (rows.length === 0) die("the file has no rows");
 
   const answers = new Map<string, string>();
   const problems: string[] = [];
-  for (const [i, line] of lines.entries()) {
-    const [input = "", romanization = "", ...rest] = line.split("\t");
-    const english = rest.join("\t").trim();
-    const where = `row ${i + 1} (${input || "no input"})`;
+  for (const { text, line } of rows) {
+    const columns = text.split("\t");
+    const [input = "", romanization = ""] = columns;
+    const where = `line ${line} (${input || "no input"})`;
+    /*
+     * Three columns exactly. A row that lost one shifts the answer into the
+     * romanization slot and leaves english empty — which would otherwise read
+     * as "not filled in yet", silently discarding a lookup somebody did.
+     */
+    if (columns.length < 3) {
+      problems.push(`${where}: ${columns.length} column(s), expected 3 separated by tabs`);
+      continue;
+    }
+    const english = columns.slice(2).join("\t").trim();
     if (!input || !romanization) {
-      problems.push(`${where}: expected three tab-separated columns`);
+      problems.push(`${where}: input and romanization are both required`);
       continue;
     }
     // A row left blank is "not done yet", not an error.
@@ -146,7 +168,7 @@ function ingest(file: string | undefined): void {
   const unknown: string[] = [];
   const overwrites: string[] = [];
   let filled = 0;
-  let unchanged = 0;
+  let rechecked = 0;
 
   for (const [key, english] of answers) {
     const hit = all.find((c) => keyOf(c) === key);
@@ -155,7 +177,11 @@ function ingest(file: string | undefined): void {
       continue;
     }
     if (hit.expected === english) {
-      unchanged++;
+      // Same answer, read again today: that is exactly what verifiedAt is for
+      // when the data edition moves, so it moves too.
+      hit.verifiedAt = today;
+      hit.source = SOURCE;
+      rechecked++;
       continue;
     }
     // An already-verified case coming back different means the data edition
@@ -164,7 +190,7 @@ function ingest(file: string | undefined): void {
       overwrites.push(
         `${hit.input} [${hit.romanization}]\n    was: ${hit.expected}\n    now: ${english}`,
       );
-      if (!process.env.REPLACE) continue;
+      if (!replaceRequested()) continue;
     }
     hit.expected = english;
     hit.verifiedAt = today;
@@ -178,37 +204,62 @@ function ingest(file: string | undefined): void {
     console.error("  The input and romanization must match a case exactly.");
     process.exit(1);
   }
-  if (overwrites.length > 0) {
-    console.error("golden: these cases already had a different verified answer:");
-    for (const o of overwrites) console.error(`  ${o}`);
-    if (!process.env.REPLACE) {
-      console.error("  Left untouched. Re-run with REPLACE=1 if the new reading is correct.");
-    }
-  }
 
+  /*
+   * Everything below is computed before anything is written. Writing the JSON
+   * first and then discovering the README sentence is missing would leave three
+   * files disagreeing, with the floor raised and unlowerable.
+   */
   const verified = all.filter((c) => c.expected !== null).length;
-  writeFileSync(GOLDEN, `${JSON.stringify(all, null, 2)}\n`);
 
-  // The floor only ever rises; the test refuses to run below it.
   const test = read(TEST);
   const floorLine = /const VERIFIED_FLOOR = (\d+);/.exec(test);
   if (!floorLine?.[1]) die("could not find VERIFIED_FLOOR in test/golden.test.ts");
   const floor = Number(floorLine[1]);
-  if (verified > floor) {
-    writeFileSync(TEST, test.replace(floorLine[0], `const VERIFIED_FLOOR = ${verified};`));
-  }
+  // The floor only ever rises; the test refuses to run below it.
+  const nextTest =
+    verified > floor ? test.replace(floorLine[0], `const VERIFIED_FLOOR = ${verified};`) : test;
 
-  // A test asserts this sentence against the real count, so it has to move too.
+  // A test asserts the README's count against the real one, and the sample test
+  // output beside it is just as wrong if it is left behind.
   const readme = read(README);
-  const quoted = /(\d+) of (\d+) verified/.exec(readme);
-  if (!quoted) die("could not find the 'N of M verified' sentence in README.md");
-  writeFileSync(README, readme.replace(quoted[0], `${verified} of ${all.length} verified`));
+  if (!/(\d+) of (\d+) verified/.test(readme)) {
+    die("could not find the 'N of M verified' sentence in README.md");
+  }
+  const percent = Math.round((verified / all.length) * 100);
+  const nextReadme = readme
+    .replace(/\d+ of \d+ verified/, `${verified} of ${all.length} verified`)
+    .replace(
+      /\d+\/\d+ cases verified against the official tool \(\d+%\)/,
+      `${verified}/${all.length} cases verified against the official tool (${percent}%)`,
+    );
+
+  const plan = read(PLAN);
+  const nextPlan = plan.replace(
+    /\d+ of \d+ cases verified against the official tool/,
+    `${verified} of ${all.length} cases verified against the official tool`,
+  );
+
+  writeFileSync(GOLDEN, `${JSON.stringify(all, null, 2)}\n`);
+  if (nextTest !== test) writeFileSync(TEST, nextTest);
+  if (nextReadme !== readme) writeFileSync(README, nextReadme);
+  if (nextPlan !== plan) writeFileSync(PLAN, nextPlan);
 
   console.error(
-    `golden: ${filled} newly verified, ${unchanged} already matching. ` +
+    `golden: ${filled} newly verified, ${rechecked} re-read unchanged. ` +
       `${verified}/${all.length} total; floor now ${Math.max(floor, verified)}.`,
   );
   disagreements(all);
+
+  if (overwrites.length > 0) {
+    console.error("\ngolden: these cases already had a different verified answer:");
+    for (const o of overwrites) console.error(`  ${o}`);
+    if (!replaceRequested()) {
+      console.error("  Left as they were. Re-run with REPLACE=1 if the new reading is correct.");
+      // Non-zero, so `ingest && git commit` stops at the one case needing a human.
+      process.exit(2);
+    }
+  }
 }
 
 /**
