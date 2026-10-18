@@ -52,7 +52,7 @@ function die(message: string): never {
   process.exit(1);
 }
 
-function worksheet(): void {
+function worksheet(file: string | undefined): void {
   const pending = load().filter((c) => c.expected === null);
   if (pending.length === 0) {
     console.error("golden: every case is already verified.");
@@ -65,15 +65,27 @@ function worksheet(): void {
    * rather than reading it, and one copied row is indistinguishable from a
    * verified one afterwards.
    */
-  console.log(["input", "romanization", "official_english"].join("\t"));
-  for (const c of pending) console.log([c.input, c.romanization, ""].join("\t"));
+  const tsv = [
+    ["input", "romanization", "official_english"].join("\t"),
+    ...pending.map((c) => [c.input, c.romanization, ""].join("\t")),
+  ].join("\n");
+
+  /*
+   * Writing the file here rather than leaving the caller to redirect: `npm run`
+   * prints its own banner on *stdout*, so `npm run golden:worksheet > todo.tsv`
+   * silently prepends two junk lines to the sheet, and ingest then rejects the
+   * whole file over them.
+   */
+  if (file) writeFileSync(resolve(process.cwd(), file), `${tsv}\n`);
+  else console.log(tsv);
 
   const systems = [...new Set(pending.map((c) => c.romanization))].sort();
   console.error(
     `golden: ${pending.length} case(s) to look up, in: ${systems.join(", ")}.\n` +
+      (file ? `  Written to ${file}.\n` : "") +
       `  Paste each 'input' into ${SOURCE}\n` +
       "  and copy its output verbatim into official_english. Then:\n" +
-      "    npm run golden:ingest -- <filled.tsv>\n" +
+      `    npm run golden:ingest -- ${file ?? "<filled.tsv>"}\n` +
       "  Partial sheets are fine — rows you leave blank stay unverified.",
   );
 }
@@ -96,7 +108,10 @@ function ingest(file: string | undefined): void {
   if (!file) die("ingest needs a TSV file: npm run golden:ingest -- filled.tsv");
   const lines = read(resolve(process.cwd(), file))
     .split(/\r?\n/)
-    .filter((line) => line.trim() !== "");
+    .filter((line) => line.trim() !== "")
+    // `npm run … > sheet.tsv` captures npm's own banner on stdout. Dropping
+    // those two lines beats failing the whole file over them.
+    .filter((line) => !/^> /.test(line));
   if (lines.length === 0) die("the file is empty");
   if (lines[0]?.startsWith("input\t")) lines.shift();
 
@@ -224,6 +239,6 @@ function disagreements(all: GoldenCase[]): void {
 }
 
 const [command, file] = process.argv.slice(2);
-if (command === "worksheet") worksheet();
+if (command === "worksheet") worksheet(file);
 else if (command === "ingest") ingest(file);
-else die("usage: golden.ts worksheet | golden.ts ingest <filled.tsv>");
+else die("usage: golden.ts worksheet [out.tsv] | golden.ts ingest <filled.tsv>");

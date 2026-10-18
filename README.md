@@ -199,7 +199,7 @@ Beyond these: unit tests per grammar rule, a contract test over the public resul
 For more than one or two, steps 2 and 3 are done for you:
 
 ```sh
-npm run golden:worksheet > todo.tsv   # the unverified inputs, one per row
+npm run golden:worksheet -- todo.tsv  # the unverified inputs, one per row
 # look each up, paste the tool's output into the official_english column
 npm run golden:ingest -- todo.tsv     # fills the JSON, raises the floor, updates this README
 ```
