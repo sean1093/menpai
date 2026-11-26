@@ -13,7 +13,13 @@ limit, and nothing leaves your process.
 | Browser checkout page (React, Vue, Svelte, plain JS) | `npm install menpai`, call it client-side | No network round-trip; works offline. Tree-shakes to nothing if unused. |
 | Edge function (Cloudflare Workers, Vercel Edge, Deno Deploy) | Same package | No Node built-ins are used. |
 | Anything else (PHP, Ruby, Java, .NET, a no-code platform) | Run [`examples/http-server.mjs`](../examples/http-server.mjs) or [`examples/cloudflare-worker.mjs`](../examples/cloudflare-worker.mjs) and call it over HTTP | ~40 lines each, zero dependencies besides menpai. |
-| A human who just needs one address | Link to the web UI: `https://sean1093.github.io/menpai/?q=<address>` | Optional `&r=tongyong` / `&r=wade-giles`. |
+| A human who just needs one address | Link to the web UI: `https://sean1093.github.io/menpai/#q=<address>` | Optional `&r=tongyong` / `&r=wade-giles`. Use the **`#`** form: a fragment is never sent in an HTTP request, so the address does not reach the host or its CDN. `?q=` still works and is kept for existing links. |
+
+Either way, a link built this way carries your customer's address through the
+clicker's browser history and sync, and through any chat log or ticket it is
+pasted into. The page strips it from the URL on load, which limits the damage
+but cannot undo the paste. For anything beyond a one-off, use the npm package
+in your own process instead.
 
 ## 2. The call
 

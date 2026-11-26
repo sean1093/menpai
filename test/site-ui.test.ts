@@ -310,14 +310,31 @@ describe("site UI", () => {
       expect(shiftEnter.defaultPrevented).toBe(false);
     });
 
-    it("copies the English text and confirms it", async () => {
+    it("copies the English text and confirms it in the live region", async () => {
       await boot();
       submit("臺北市大安區忠孝東路一段1號");
       const copy = $<HTMLButtonElement>("copy");
       copy.click();
       await vi.waitFor(() => expect(copy.classList.contains("done")).toBe(true));
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(english().textContent);
-      expect(copy.textContent).toContain("已複製");
+      // The confirmation goes to the live region, not into the button's own
+      // label: mutating the name of the control you just pressed is announced
+      // inconsistently, and voice-control users navigate by that name.
+      expect($("live").textContent).toContain("已複製");
+      expect(copy.textContent).toBe("複製英文地址");
+    });
+
+    it("does not confirm green on a result it cannot vouch for", async () => {
+      // The clipboard gets flat text with the underlines gone, so copying is
+      // the moment the uncertainty is lost — and a green tick was the last
+      // thing the reader saw before pasting a guess into an official form.
+      await boot();
+      submit("台北市信義區不存在的路99號");
+      const copy = $<HTMLButtonElement>("copy");
+      copy.click();
+      await vi.waitFor(() => expect($("live").textContent).toContain("已複製"));
+      expect(copy.classList.contains("done")).toBe(false);
+      expect($("live").textContent).toContain("請再核對");
     });
 
     it("puts the copy button back after a few seconds", async () => {
@@ -340,8 +357,8 @@ describe("site UI", () => {
       } finally {
         vi.useRealTimers();
       }
-      expect(copy.textContent).toBe("複製英文地址");
       expect(copy.classList.contains("done")).toBe(false);
+      expect(copy.textContent).toBe("複製英文地址");
     });
 
     it("tells the reader to select the text when the clipboard is refused", async () => {
@@ -355,8 +372,138 @@ describe("site UI", () => {
       submit("臺北市大安區忠孝東路一段1號");
       const copy = $<HTMLButtonElement>("copy");
       copy.click();
-      await vi.waitFor(() => expect(copy.textContent).toContain("無法複製"));
+      await vi.waitFor(() => expect($("live").textContent).toContain("無法複製"));
       expect(copy.classList.contains("done")).toBe(false);
+      // The button keeps its name so it can be pressed again, by voice too.
+      expect(copy.textContent).toBe("複製英文地址");
+    });
+  });
+
+  describe("telling the reader what is actually wrong", () => {
+    it("does not say 'check the underlined part' when nothing is underlined", async () => {
+      /*
+       * The worst of the UX findings. A name or phone pasted along with the
+       * address is the common case, the English comes out perfect, and the page
+       * showed the red 「請確認畫底線的部分」 banner — with no underline
+       * anywhere, because the discarded text never reaches the English output
+       * for renderEnglish to mark. A red alarm on a right answer teaches people
+       * to distrust the tool.
+       */
+      await boot();
+      submit("台中市西屯區市政路100號 王小明 0912345678");
+      expect(english().textContent).toBe(
+        "No. 100, Shizheng Rd., Xitun Dist., Taichung City 407, Taiwan (R.O.C.)",
+      );
+      expect(english().querySelectorAll("span")).toHaveLength(0);
+      const status = $("status");
+      expect(status.textContent).not.toContain("畫底線");
+      expect(status.textContent).toContain("沒被翻譯");
+      expect(status.className).not.toContain("unknown");
+      // And it still says which fragment was dropped.
+      expect(issueTexts().join("\n")).toContain("王小明");
+    });
+
+    it("still warns hard when part of the address itself was lost", async () => {
+      // One wrong character: 洛 for 路. The house number, the section and the
+      // road suffix are all gone — this is the case that needs a human, and it
+      // must not look like the one above.
+      await boot();
+      submit("台北市大安區忠孝東洛四段1號");
+      expect(english().textContent).not.toContain("No. 1");
+      expect($("status").textContent).toContain("門牌號碼");
+      expect($("status").className).toContain("unknown");
+      expect(issueTexts().join("\n")).toContain("東洛");
+    });
+
+    it("names the city when the district belongs to a different one", async () => {
+      await boot();
+      submit("臺北市板橋區文化路一段188號");
+      const texts = issueTexts().join("\n");
+      expect(texts).toContain("板橋區");
+      expect(texts).toContain("新北市");
+    });
+
+    it("says when it filled the district in from the postal code", async () => {
+      await boot();
+      submit("106臺北市忠孝東路四段1號");
+      expect(english().textContent).toContain("Da'an Dist.");
+      expect(issueTexts().join("\n")).toContain("郵遞區號");
+    });
+  });
+
+  describe("accessibility of the result", () => {
+    it("marks the English output as English", async () => {
+      // Otherwise a Mandarin TTS voice reads the one thing this app produces
+      // as phoneme soup — and that string is what the reader must transcribe.
+      await boot();
+      submit("臺北市大安區忠孝東路一段1號");
+      expect(english().lang).toBe("en");
+      const value = $("segments").querySelector("td:nth-child(2)");
+      expect(value?.getAttribute("lang")).toBe("en");
+    });
+
+    it("announces a short sentence, not the whole card", async () => {
+      await boot();
+      submit("臺北市大安區忠孝東路一段1號");
+      const live = $("live");
+      expect(live.getAttribute("role")).toBe("status");
+      expect(live.textContent).toContain("已轉換");
+      // The announcement carries the English, marked as English.
+      expect(live.querySelector("span")?.lang).toBe("en");
+    });
+
+    it("moves focus to the result instead of dropping it on the body", async () => {
+      await boot();
+      address().value = "臺北市大安區忠孝東路一段1號";
+      $<HTMLButtonElement>("go").click();
+      expect(document.activeElement).toBe(result());
+      expect(document.activeElement).not.toBe(document.body);
+    });
+
+    it("gives the segment table real headers", async () => {
+      await boot();
+      submit("臺北市大安區忠孝東路一段1號");
+      const table = document.querySelector("table.segments");
+      const headers = [...(table?.querySelectorAll("th") ?? [])];
+      expect(headers.map((h) => h.getAttribute("scope"))).toContain("col");
+      expect(table?.querySelector("caption")).not.toBeNull();
+    });
+
+    it("labels each confidence mark tersely, not with the page-level sentence", async () => {
+      await boot();
+      submit("臺北市大安區忠孝東路一段1號");
+      const label = $("segments").querySelector(".dot")?.getAttribute("aria-label");
+      expect(label).toBe("官方資料");
+      expect(label).not.toContain("畫底線");
+    });
+
+    it("keeps quiet while the address is still being typed", async () => {
+      // role="alert" plus the debounce barked "找不到縣市" over a screen-reader
+      // user's own typing echo every time they paused for 200 ms.
+      vi.useFakeTimers();
+      try {
+        await boot();
+        address().value = "台北";
+        address().dispatchEvent(new Event("input", { bubbles: true }));
+        vi.advanceTimersByTime(250);
+        expect(error().hidden).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+      // But pressing the button does report it.
+      $<HTMLButtonElement>("go").click();
+      expect(error().hidden).toBe(false);
+    });
+  });
+
+  describe("the examples", () => {
+    it("disappear once there is a paste to protect", async () => {
+      await boot();
+      const examples = $("examples");
+      expect(examples.hidden).toBe(false);
+      address().value = "台中市西屯區市政路100號";
+      address().dispatchEvent(new Event("input", { bubbles: true }));
+      expect(examples.hidden).toBe(true);
     });
   });
 
