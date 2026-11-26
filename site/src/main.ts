@@ -63,6 +63,15 @@ function describeWarning(w: ParseWarning): { text: string; level: "info" | "warn
       return { text: `「${w.text}」已改制為「${w.resolved}」，已依新名稱翻譯`, level: "info" };
     case "city-inferred-from-area":
       return { text: `未輸入縣市，依「${w.text}」推得「${w.resolved}」`, level: "info" };
+    case "area-inferred-from-postal-code":
+      return { text: `未輸入鄉鎮市區，依郵遞區號 ${w.text} 推得「${w.resolved}」`, level: "info" };
+    case "area-city-mismatch":
+      // The most common address mistake there is, and the one the user can
+      // actually fix: name the right city and everything else parses.
+      return {
+        text: `「${w.text}」不屬於你填的縣市${w.resolved ? `，它在「${w.resolved}」` : ""}，請改成正確的縣市`,
+        level: "bad",
+      };
     case "postal-code-mismatch":
       return {
         text: `郵遞區號與行政區不符${w.resolved ? `（此區應為 ${w.resolved}）` : ""}，已照原樣保留，請確認`,

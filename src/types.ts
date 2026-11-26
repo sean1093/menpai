@@ -91,6 +91,10 @@ export type ParseWarningCode =
   | "city-inferred-from-area"
   | "city-alias"
   | "area-alias"
+  /** The named district belongs to a different city; `resolved` names that city. */
+  | "area-city-mismatch"
+  /** No district was given, but the postal code identified exactly one. */
+  | "area-inferred-from-postal-code"
   | "postal-code-mismatch"
   | "unparsed-remainder";
 
@@ -116,7 +120,14 @@ export interface ParseWarning {
   resolved?: string;
 }
 
-export type ParseErrorCode = "empty-input" | "city-not-found" | "area-ambiguous";
+export type ParseErrorCode =
+  /** Not a string at all — a nullable column rather than an address. */
+  | "invalid-input"
+  | "empty-input"
+  /** Longer than any real address; refused rather than processed. */
+  | "input-too-long"
+  | "city-not-found"
+  | "area-ambiguous";
 
 export interface ParseError {
   code: ParseErrorCode;

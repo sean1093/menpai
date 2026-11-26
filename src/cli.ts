@@ -146,15 +146,31 @@ function parseArgs(argv: string[], version: string): Parsed {
   return parsed;
 }
 
+/*
+ * Control characters, replaced before anything reaches a terminal.
+ *
+ * Every note echoes the input line, and a warning embeds the fragment that
+ * could not be read, so an address from a file the operator did not author goes
+ * to stderr verbatim. That is enough for OSC 0 to rewrite the window title,
+ * CSI 2J to clear the screen — scrolling away the warning above it — or OSC 52
+ * to write attacker-chosen data into the operator's clipboard. Batch-processing
+ * third-party address lists is exactly what this CLI is for, so the escape is
+ * stripped unconditionally rather than only when stdout is a TTY: the same
+ * string ends up in CI logs and log aggregators that interpret escapes too.
+ */
+const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
+const safe = (text: string): string => text.replace(CONTROL, "�");
+
 /** Human-readable notes for stderr. Empty when the result is fully `exact`. */
-function notes(input: string, result: ReturnType<typeof translate>): string[] {
+function notes(rawInput: string, result: ReturnType<typeof translate>): string[] {
+  const input = safe(rawInput);
   const out: string[] = [];
   if (result.error) {
-    out.push(`${input}: ${result.error.message}`);
+    out.push(`${input}: ${safe(result.error.message)}`);
     return out;
   }
   const warnings = result.warnings ?? [];
-  for (const warning of warnings) out.push(`${input}: ${warning.message}`);
+  for (const warning of warnings) out.push(`${input}: ${safe(warning.message)}`);
 
   // `translate` puts the uninterpreted remainder in `unresolved` as well as
   // warning about it, and the two say opposite things: "could not interpret
@@ -170,7 +186,7 @@ function notes(input: string, result: ReturnType<typeof translate>): string[] {
     return false;
   });
   if (guessed.length > 0) {
-    out.push(`${input}: not in the official list, romanized by rule: ${guessed.join(", ")}`);
+    out.push(`${input}: not in the official list, romanized by rule: ${safe(guessed.join(", "))}`);
   }
 
   // A number no real address would carry makes its own segment `unknown`
@@ -178,7 +194,7 @@ function notes(input: string, result: ReturnType<typeof translate>): string[] {
   // a batch row fails with nothing at all printed to say why.
   const doubtful = result.segments.filter((s) => s.confidence === "unknown");
   if (doubtful.length > 0) {
-    out.push(`${input}: cannot vouch for: ${doubtful.map((s) => s.value).join(", ")}`);
+    out.push(`${input}: cannot vouch for: ${safe(doubtful.map((s) => s.value).join(", "))}`);
   }
   return out;
 }

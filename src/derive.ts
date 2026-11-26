@@ -75,7 +75,15 @@ export function deriveRoadEnglish(zh: string, lookup: CharLookup): Derived {
   return { en: parts.join(", "), unknown };
 }
 
-const TRAILING_NUMERAL = new RegExp(`^(.+?)([${ZH_NUMERAL_CLASS}]+)$`);
+/*
+ * Bounded for the same reason as `SECTION_NUMERALS` in text.ts: a lazy prefix
+ * followed by an unbounded greedy run anchored at `$` re-scans the tail from
+ * every split point when the string does not end in a numeral — quadratic.
+ * Unreachable through `parse()`, where every name is already length-capped, but
+ * `format()` is public API and takes field values straight from the caller.
+ * `zhNumeralToInt` cannot usefully exceed 千 scale, so 6 is generous.
+ */
+const TRAILING_NUMERAL = new RegExp(`^(.+?)([${ZH_NUMERAL_CLASS}]{1,6})$`);
 
 /**
  * Name without its suffix: strips a trailing ordinal numeral, then a direction,

@@ -90,11 +90,13 @@ Accepted input variations: `臺` / `台`, full-width digits, Chinese numerals (`
 
 | `error.code` | Meaning |
 | --- | --- |
+| `invalid-input` | Not a string — a nullable column rather than an address. Returned, not thrown, so one bad row cannot end a batch. |
 | `empty-input` | Nothing to parse. |
+| `input-too-long` | Over 1,000 characters. No real address is close; the cap keeps a pathological input from costing more than it should. |
 | `city-not-found` | No city / county at the start, and no unique district either. |
 | `area-ambiguous` | e.g. `大安區…` alone — exists in 臺北市 and 臺中市; add the city or a postal code. `error.candidates` lists them, so you can offer the choice. |
 
-`warnings[].code`: `city-alias`, `area-alias`, `city-inferred-from-area`, `postal-code-mismatch` (the code in the input does not belong to that district; it is kept, not corrected), `unparsed-remainder`.
+`warnings[].code`: `city-alias`, `area-alias`, `city-inferred-from-area`, `area-inferred-from-postal-code` (no district was written, but the code identified exactly one), `area-city-mismatch` (the district named belongs to a different city — `resolved` names that city, so you can offer the correction), `postal-code-mismatch` (the code in the input does not belong to that district; it is kept, not corrected), `unparsed-remainder`.
 
 Each warning also carries `text` — the input fragment it is about — and, where there is one, `resolved`, what the library used instead. That is how you tell a fragment the library *guessed* at from one it *skipped*: both appear in `unresolved`, but only a skipped one has an `unparsed-remainder` warning naming it, and that warning has no `resolved`.
 
