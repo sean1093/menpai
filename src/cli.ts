@@ -158,8 +158,18 @@ function parseArgs(argv: string[], version: string): Parsed {
  * stripped unconditionally rather than only when stdout is a TTY: the same
  * string ends up in CI logs and log aggregators that interpret escapes too.
  */
-const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
-const safe = (text: string): string => text.replace(CONTROL, "�");
+const isControl = (code: number): boolean =>
+  code <= 0x08 || (code >= 0x0b && code <= 0x1f) || (code >= 0x7f && code <= 0x9f);
+
+/*
+ * A codepoint test rather than a regex: a character class of control
+ * characters is what `noControlCharactersInRegex` exists to catch, and the rule
+ * is right — in a regex literal those are nearly always a mistake. Tab (0x09)
+ * and newline (0x0a) are deliberately left alone; they are ordinary separators
+ * in a batch file and harmless on a terminal.
+ */
+const safe = (text: string): string =>
+  Array.from(text, (ch) => (isControl(ch.codePointAt(0) ?? 0) ? "�" : ch)).join("");
 
 /** Human-readable notes for stderr. Empty when the result is fully `exact`. */
 function notes(rawInput: string, result: ReturnType<typeof translate>): string[] {

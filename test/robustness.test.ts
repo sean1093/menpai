@@ -29,6 +29,23 @@ function ms(work: () => void): number {
   return performance.now() - started;
 }
 
+/**
+ * Control characters present in `text`, as `U+XXXX` names.
+ *
+ * Returning the offenders rather than a boolean so a failure says which
+ * character got through. Written as a codepoint test for the same reason as
+ * `safe()` in src/cli.ts: a regex class of control characters is what
+ * `noControlCharactersInRegex` is for.
+ */
+function offenders(text: string): string[] {
+  return Array.from(text)
+    .map((ch) => ch.codePointAt(0) ?? 0)
+    .filter(
+      (code) => code <= 0x08 || (code >= 0x0b && code <= 0x1f) || (code >= 0x7f && code <= 0x9f),
+    )
+    .map((code) => `U+${code.toString(16).padStart(4, "0")}`);
+}
+
 describe("complexity guards", () => {
   /*
    * A CJK character in the fixture is load-bearing, not decoration.
@@ -197,7 +214,7 @@ describe("cli output safety", () => {
     // write to the operator's clipboard via OSC 52.
     const hostile = "臺北市大安區忠孝東路四段1號\u001b]0;PWNED\u0007";
     const result = runCli([hostile]);
-    expect(result.stderr).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+    expect(offenders(result.stderr)).toEqual([]);
     // The text is still reported, just inert.
     expect(result.stderr).toContain("PWNED");
     expect(result.stderr).toContain("�");
@@ -207,5 +224,13 @@ describe("cli output safety", () => {
     const result = runCli(["台北市信義區不存在的路99號"]);
     expect(result.stderr).toContain("不存在的路");
     expect(result.stderr).not.toContain("�");
+    expect(offenders(result.stderr)).toEqual([]);
+  });
+
+  it("keeps the tab and newline a batch file relies on", () => {
+    // Only the escapes that drive a terminal are replaced; 0x09 and 0x0a are
+    // ordinary separators, and mangling them would corrupt piped output.
+    const result = runCli([], "台北市信義區不存在的路99號\n台北市信義區不存在的路98號\n");
+    expect(result.stdout.split("\n").filter(Boolean)).toHaveLength(2);
   });
 });
