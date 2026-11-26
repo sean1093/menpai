@@ -40,8 +40,18 @@ function isSyllable(text: string): boolean {
 export function splitSyllables(word: string): string[] | null {
   const text = word.toLowerCase();
   const out: string[] = [];
+  /*
+   * Positions already proved unsegmentable. Without this the search is
+   * exponential: every syllable boundary is retried under each earlier choice,
+   * so a word built from overlapping candidates grows ~4× per 6 characters —
+   * a 67-character road name took 1.9 s, and ~90 characters takes minutes.
+   * Whether a suffix segments does not depend on how the prefix was cut, so one
+   * failure per position is final and memoising it is exact, not a heuristic.
+   */
+  const dead = new Set<number>();
   const walk = (pos: number): boolean => {
     if (pos === text.length) return true;
+    if (dead.has(pos)) return false;
     let start = pos;
     let afterApostrophe = false;
     if (text[start] === "'") {
@@ -57,6 +67,7 @@ export function splitSyllables(word: string): string[] | null {
       if (walk(start + len)) return true;
       out.pop();
     }
+    dead.add(pos);
     return false;
   };
   return walk(0) ? out : null;

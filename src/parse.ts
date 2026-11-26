@@ -1,4 +1,5 @@
 import {
+  AREA_RENAMES,
   type Area,
   areasNamed,
   areasOfCity,
@@ -46,7 +47,21 @@ const BASEMENT_BARE = new RegExp(
 );
 const ROOM = new RegExp(`^(${UNIT})室`);
 const VILLAGE = /^([^0-9巷弄號段路街鄰]{1,6}[村里])/;
-const ROAD_FALLBACK = /^([^0-9]{1,12}?(?:大道|路|街|巷|弄))/;
+/*
+ * A road name guessed by shape rather than found in the dictionary. It must not
+ * begin with what looks like a district, because the most common address
+ * mistake in Taiwan is naming a district that belongs to a different city
+ * (臺北市板橋區…, 新竹縣新竹市…, 嘉義縣嘉義市…). Without this guard the district
+ * was swallowed into the guess and `臺北市板橋區文化路` became the fabricated
+ * road "Banqiaoquwenhua Rd." — with the district and the postal code silently
+ * gone, no warning, and `confidence: "inferred"`, which the README frames as
+ * benign. Every official road name containing 市 or 區 is a dictionary entry
+ * resolved before this fallback runs, so constraining only the fallback costs
+ * nothing.
+ */
+const ROAD_FALLBACK = /^(?![^0-9]{1,3}[市區鄉鎮])([^0-9]{1,12}?(?:大道|路|街|巷|弄))/;
+/** Generous by an order of magnitude; the longest real address is well under 60. */
+const MAX_INPUT_LENGTH = 1000;
 const AREA_SUFFIX = /[市鄉鎮區]$/;
 /** A token that needs something in front of it; left at the start, it was orphaned. */
 const ORPHANED_MARKER = /^[巷弄衖段號樓室]/;
@@ -86,6 +101,22 @@ function matchArea(
   cityIndex: number,
   warnings: ParseWarning[],
 ): { area: Area; length: number } | undefined {
+  // A district renamed out of existence, before the suffix-swap heuristic below
+  // can mistake its stem for an unrelated district of the same city.
+  const cityZh = cityAt(cityIndex)?.zh;
+  for (const [old, current] of Object.entries((cityZh ? AREA_RENAMES[cityZh] : undefined) ?? {})) {
+    if (!text.startsWith(old)) continue;
+    const area = areasOfCity(cityIndex).find((a) => a.zh === current);
+    if (!area) continue;
+    warnings.push({
+      code: "area-alias",
+      message: `"${old}" was renamed; read as "${current}".`,
+      text: old,
+      resolved: current,
+    });
+    return { area, length: old.length };
+  }
+
   let best: { area: Area; length: number; alias: boolean } | undefined;
   for (const area of areasOfCity(cityIndex)) {
     if (area.zh === "") continue;
@@ -192,7 +223,41 @@ function locate(
  * anything after the last recognised part is returned in `unparsed`.
  */
 export function parse(input: string): ParseResult {
+  /*
+   * A nullable column or a numeric-looking row used to throw a TypeError out of
+   * `normalizeZh`, which takes down a whole batch job. The README promises pure
+   * functions; returning the failure is what a caller can actually handle.
+   */
+  if (typeof input !== "string")
+    return {
+      ok: false,
+      error: {
+        code: "invalid-input",
+        message: `Expected a string, got ${input === null ? "null" : typeof input}.`,
+      },
+    };
+  /*
+   * No real address comes close. The cap keeps a pathological input from
+   * costing more than it should anywhere downstream, rather than relying on
+   * every regex in the file staying linear forever.
+   */
+  if (input.length > MAX_INPUT_LENGTH)
+    return {
+      ok: false,
+      error: {
+        code: "input-too-long",
+        message: `Input is ${input.length} characters; the limit is ${MAX_INPUT_LENGTH}.`,
+      },
+    };
   let rest = normalizeZh(input);
+  /*
+   * `福建省金門縣` and `福建省連江縣` are the official 戶政 spelling — they are
+   * what appears on an ID card and a 戶籍謄本 — and `臺灣省<縣>` is standard on
+   * older documents. The province is not part of a Chunghwa Post English
+   * address, so it is simply dropped; without this the whole address failed
+   * with `city-not-found`.
+   */
+  rest = rest.replace(/^(?:臺灣省|福建省)/, "");
   if (rest.length === 0)
     return { ok: false, error: { code: "empty-input", message: "Input is empty." } };
   const warnings: ParseWarning[] = [];
@@ -213,9 +278,75 @@ export function parse(input: string): ParseResult {
   if (located.area) parts.area = located.area.zh;
   rest = advance(rest, located.consumed);
 
+  /*
+   * No district matched this city, but the text starts with one that belongs to
+   * a different city. Naming the wrong city for a district is the most common
+   * address mistake there is (臺北市板橋區…, 新竹縣新竹市…), and the two names
+   * together are enough to say so precisely. The district is deliberately NOT
+   * adopted: silently moving the address to another city would be a bigger lie
+   * than refusing to guess. The warning carries the city it does belong to, so
+   * a caller can offer the correction.
+   */
+  if (!located.area) {
+    const after = advance(rest, 0);
+    // A second city name, not a district: 新竹縣新竹市…, 嘉義縣嘉義市… — both are
+    // provincial cities rather than townships of the like-named county, and
+    // confusing the two is a standard mistake.
+    const second = findCity(after.slice(0, 3));
+    if (second && second.zh !== city.zh) {
+      warnings.push({
+        code: "area-city-mismatch",
+        message: `"${second.zh}" is a city, not a district of ${city.zh}.`,
+        text: second.zh,
+        resolved: second.zh,
+      });
+    } else {
+      for (let len = Math.min(6, after.length); len >= 2; len--) {
+        const token = after.slice(0, len);
+        const elsewhere = areasNamed(token);
+        if (elsewhere.length === 0) continue;
+        const cities = [...new Set(elsewhere.map((a) => cityAt(a.city)?.zh ?? ""))].filter(Boolean);
+        if (cities.includes(city.zh)) break;
+        warnings.push({
+          code: "area-city-mismatch",
+          message: `"${token}" is not a district of ${city.zh}; it belongs to ${cities.join(" / ")}.`,
+          text: token,
+          ...(cities.length === 1 && cities[0] ? { resolved: cities[0] } : {}),
+        });
+        break;
+      }
+    }
+  }
+
+  /*
+   * Dropping 區 is extremely common in how Taiwanese people write and say an
+   * address, and Chunghwa Post requires the district. When the input carried a
+   * postal code that identifies exactly one district of this city, the district
+   * is recoverable — so recover it rather than returning an address missing the
+   * part the carrier needs.
+   */
+  if (!located.area && parts.postalCode) {
+    const zip3 = parts.postalCode.slice(0, 3);
+    const matching = areasOfCity(city.index).filter((a) => a.zip === zip3 && a.zh !== "");
+    const only = matching.length === 1 ? matching[0] : undefined;
+    if (only) {
+      parts.area = only.zh;
+      warnings.push({
+        code: "area-inferred-from-postal-code",
+        message: `District "${only.zh}" was inferred from postal code ${zip3}.`,
+        text: zip3,
+        resolved: only.zh,
+      });
+    }
+  }
+
   if (parts.postalCode) {
     const zip3 = parts.postalCode.slice(0, 3);
-    const expected = located.area ? [located.area.zip] : areasOfCity(city.index).map((a) => a.zip);
+    const expected = parts.area
+      ? areasOfCity(city.index)
+          .filter((a) => a.zh === parts.area)
+          .map((a) => a.zip)
+      : areasOfCity(city.index).map((a) => a.zip);
     if (!expected.includes(zip3)) {
       warnings.push({
         code: "postal-code-mismatch",

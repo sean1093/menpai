@@ -69,6 +69,25 @@ export const CITY_ALIASES: Record<string, string> = {
   高雄縣: "高雄市",
 };
 
+/**
+ * Districts renamed out of existence, keyed by the city they now belong to.
+ *
+ * `matchArea` otherwise treats any 市/鄉/鎮/區 swap on a shared stem as the same
+ * place, which is right for the merger renames (板橋市 → 板橋區) but wrong when
+ * the old name is gone and its stem collides with an unrelated district:
+ * 高雄縣三民鄉 became 那瑪夏鄉 in 2008 and is 那瑪夏區 (849) today, while
+ * 高雄市三民區 (807) is downtown Kaohsiung, ~100 km away. The two coexisted
+ * before the merger, so even a contemporaneous record was mis-filed — and at
+ * `confidence: "exact"`, because an `area-alias` warning reads like the
+ * harmless 板橋市 case.
+ *
+ * Checked before the suffix-swap heuristic. There are no stem collisions among
+ * the 371 current districts, so only names that no longer exist can land here.
+ */
+export const AREA_RENAMES: Record<string, Record<string, string>> = {
+  高雄市: { 三民鄉: "那瑪夏區" },
+};
+
 export function findCity(zh: string): City | undefined {
   for (let i = 0; i < CITIES.length; i++) {
     const city = CITIES[i];

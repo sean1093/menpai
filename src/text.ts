@@ -74,6 +74,27 @@ export function ordinal(n: number): string {
   }
 }
 
+/*
+ * Dashes that mean the same thing as an ASCII hyphen in a house number.
+ *
+ * `1-1號` is the 附號 form and parses; an en or em dash does not, and the whole
+ * house number is then lost — the most delivery-fatal omission there is. They
+ * arrive constantly: Word and most web editors autocorrect `-` to an en dash,
+ * and PDFs are full of them. Full-width `－` (U+FF0D) is already handled by
+ * `toHalfWidth`; every codepoint here sits outside its U+FF01–FF5E range.
+ *
+ * Built from codepoints on purpose. Written as a literal character class this
+ * is `[‐-―−]` — four glyphs nobody can tell apart, with a range operator hiding
+ * between two of them. The formatter rewrites `‐` escapes into those
+ * glyphs, so numbers are the only form that stays reviewable.
+ */
+const DASHES = new RegExp(
+  `[${[0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2015, 0x2212]
+    .map((code) => String.fromCodePoint(code))
+    .join("")}]`,
+  "g",
+);
+
 /**
  * Canonical form used for every dictionary key and every parsed value:
  * half-width ASCII, `台` written as `臺`, separators (commas, whitespace)
@@ -83,6 +104,7 @@ export function ordinal(n: number): string {
 export function normalizeZh(text: string): string {
   return toHalfWidth(text)
     .replace(/台/g, "臺")
+    .replace(DASHES, "-")
     .replace(/[\s,、;]+/g, " ")
     .replace(
       /(?<![0-9A-Za-z〇零一二三四五六七八九十百兩]) | (?![0-9A-Za-z〇零一二三四五六七八九十百兩])/g,
@@ -91,7 +113,21 @@ export function normalizeZh(text: string): string {
     .trim();
 }
 
-const SECTION_NUMERALS = new RegExp(`([0-9${ZH_NUMERAL_CLASS}]+)段`, "g");
+/*
+ * The run is bounded at 8 because this regex is unanchored and global, and it
+ * is applied to the whole remainder of untrusted input. With `+`, a long run of
+ * numerals that is never followed by 段 makes the engine retry the greedy run
+ * from every start offset: 65,536 digits behind a city name took 2.0 s, and
+ * 256 KiB took 34 s — quadratic, from one request.
+ *
+ * Eight digits is far past `CEILING.section` (99), so nothing real is lost.
+ *
+ * Note for anyone benchmarking this: the same digits as a one-byte ASCII string
+ * run in 0.2 ms, because V8's required-literal scan only applies there. Any
+ * fixture for this must carry a CJK character, which is what a real address
+ * always has.
+ */
+const SECTION_NUMERALS = new RegExp(`([0-9${ZH_NUMERAL_CLASS}]{1,8})段`, "g");
 
 /** `四段` / `４段` → `4段` everywhere in the text; other numerals are left alone. */
 export function normalizeSections(text: string): string {

@@ -161,6 +161,20 @@ function findArea(cityIndex: number, zh: string): Area | undefined {
  * `Rm. 5, 3 F.-2, No. 1-1, Aly. 27, Ln. 216, Sec. 4, Zhongxiao E. Rd., Da'an Dist., Taipei City 106, Taiwan (R.O.C.)`.
  */
 export function format(parts: AddressParts, options: FormatOptions = {}): FormatResult {
+  /*
+   * A null row from a database, or a JSON field that arrived as a number, used
+   * to throw out of the first `normalizeZh`. Non-string values are dropped so
+   * that one bad column cannot take down a batch; the segments simply go
+   * missing, which `unresolved` and `confidence` already describe.
+   */
+  if (parts === null || typeof parts !== "object") parts = {};
+  else {
+    const clean: Record<string, string> = {};
+    for (const [key, value] of Object.entries(parts)) {
+      if (typeof value === "string") clean[key] = value;
+    }
+    parts = clean as AddressParts;
+  }
   const romanization: Romanization = options.romanization ?? "hanyu";
   const withCountry = options.country ?? true;
   const segments: FormatSegment[] = [];
@@ -224,9 +238,19 @@ export function format(parts: AddressParts, options: FormatOptions = {}): Format
     );
   }
   if (parts.number !== undefined) {
-    const number = numeric(parts.number, CEILING.number);
-    const suffix =
-      parts.numberSuffix === undefined ? undefined : numeric(parts.numberSuffix, CEILING.suffix);
+    /*
+     * Taiwanese CRMs, 戶政 exports and checkout forms very often keep the whole
+     * 門牌 in one field — `1-1`, `1之1` — rather than splitting it across
+     * `number` and `numberSuffix`. The English was already correct, but
+     * `numeric()` called `1-1` implausible, so the result came back `unknown`
+     * with nothing in `unresolved` and no warning: the caller was told to send
+     * a correct address to a human, with no reason given.
+     */
+    const combined = /^(.+?)(?:-|之)(.+)$/.exec(parts.number);
+    const rawNumber = combined?.[1] ?? parts.number;
+    const rawSuffix = parts.numberSuffix ?? combined?.[2];
+    const number = numeric(rawNumber, CEILING.number);
+    const suffix = rawSuffix === undefined ? undefined : numeric(rawSuffix, CEILING.suffix);
     push(
       "number",
       structural(

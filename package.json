@@ -68,7 +68,7 @@
     "golden:ingest": "tsx scripts/golden.ts ingest",
     "changeset": "changeset",
     "version": "changeset version",
-    "prepublishOnly": "npm run build",
+    "prepare": "npm run build",
     "dev:site": "vite --config site/vite.config.ts",
     "build:site": "vite build --config site/vite.config.ts",
     "preview:site": "vite preview --config site/vite.config.ts"
