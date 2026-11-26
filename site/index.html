@@ -9,6 +9,19 @@
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161513" />
     <meta property="og:title" content="門牌 menpai — 中文地址英譯" />
     <meta property="og:description" content="把台灣中文地址轉成中華郵政英文格式。" />
+    <!--
+      The page's whole proposition is that an address never leaves the device.
+      Until now that was a promise in prose; `connect-src 'none'` makes the
+      browser enforce it, and anyone can verify it in one line. GitHub Pages
+      sends no security headers and offers no way to add them, so a meta tag is
+      the only lever available. `img-src data:` is needed by the inline SVG
+      favicon above.
+    -->
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'"
+    />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232b2a28'/%3E%3Crect x='14' y='18' width='36' height='28' rx='3' fill='none' stroke='%23f4f2ed' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23f4f2ed'/%3E%3C/svg%3E" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="icon-192.png" />
@@ -20,8 +33,19 @@
       <p class="tagline">把台灣地址轉成中華郵政英文格式</p>
     </header>
 
+    <!--
+      Announcements live here, outside every `hidden` section and rendered from
+      page load. Putting `aria-live` on a section that is `display:none` until
+      it has content is the unreliable form of the pattern: several
+      browser/screen-reader combinations announce nothing, because there was no
+      rendered region to diff against. A persistent node whose text is replaced
+      is the form that works.
+    -->
+    <p id="live" class="sr-only" role="status"></p>
+
     <main>
       <section class="card">
+        <h2 class="sr-only">輸入地址</h2>
         <label class="field-label" for="address">中文地址</label>
         <div class="input-wrap">
           <textarea
@@ -36,12 +60,17 @@
           <button id="clear" class="clear" type="button" aria-label="清除" hidden>×</button>
         </div>
 
-        <div class="examples">
-          <span class="examples-label">試試看：</span>
+        <!--
+          A fieldset rather than role="group": the chips are three long
+          addresses, and without a group name a screen-reader user tabbing in
+          hears them as results rather than as examples.
+        -->
+        <fieldset class="examples" id="examples">
+          <legend class="examples-label">試試看：</legend>
           <button type="button" class="chip" data-example="台北市大安區忠孝東路四段1號3樓之2">台北市大安區忠孝東路四段1號3樓之2</button>
           <button type="button" class="chip" data-example="高雄市三民區民族一路100號">高雄市三民區民族一路100號</button>
           <button type="button" class="chip" data-example="桃園縣中壢市中央西路二段30號12樓">桃園縣中壢市中央西路二段30號12樓</button>
-        </div>
+        </fieldset>
 
         <fieldset class="segmented" id="romanization">
           <legend>拼音系統</legend>
@@ -53,26 +82,53 @@
         <label class="switch">
           <input type="checkbox" id="country" checked />
           <span class="switch-track" aria-hidden="true"></span>
-          <span>結尾加上 Taiwan (R.O.C.)</span>
+          <span>結尾加上 <span lang="en">Taiwan (R.O.C.)</span></span>
         </label>
 
         <button id="go" class="primary" type="button">轉換成英文</button>
       </section>
 
-      <section id="result" class="card result" hidden aria-live="polite">
+      <!--
+        `tabindex="-1"` so converting can move focus here. The old code called
+        `addressEl.blur()`, which dismissed the mobile keyboard — the point —
+        but left focus on <body>, so a keyboard user's next Tab restarted at the
+        masthead and a screen-reader user had no cursor position at all.
+      -->
+      <section id="result" class="card result" hidden tabindex="-1">
+        <h2 class="sr-only">英文地址</h2>
         <p id="status" class="status"></p>
-        <p id="english" class="english"></p>
+        <p id="english" class="english" lang="en"></p>
         <button id="copy" class="primary" type="button">複製英文地址</button>
+        <p id="key" class="key">
+          <span class="dot exact" aria-hidden="true"></span> 官方資料
+          <span class="dot inferred" aria-hidden="true"></span> 拼音推估
+          <span class="dot unknown" aria-hidden="true"></span> 請人工確認
+        </p>
         <ul id="issues" class="issues"></ul>
         <details class="details">
           <summary>各段對照</summary>
           <table class="segments">
+            <caption class="sr-only">每一段地址的英文與對照狀態</caption>
+            <thead>
+              <tr>
+                <th scope="col">欄位</th>
+                <th scope="col">英文</th>
+                <th scope="col">對照狀態</th>
+              </tr>
+            </thead>
             <tbody id="segments"></tbody>
           </table>
         </details>
       </section>
 
-      <section id="error" class="card error" hidden role="alert">
+      <!--
+        `role="status"` rather than `role="alert"`. `run()` is wired to the
+        debounced input handler, so an assertive alert barked "找不到縣市" over
+        a screen-reader user's own typing echo every time they paused for 200 ms
+        while the address was merely incomplete. Partial input is not an error.
+      -->
+      <section id="error" class="card error" hidden role="status">
+        <h2 class="sr-only">無法翻譯</h2>
         <p id="error-text"></p>
         <div id="error-choices" class="choices" hidden></div>
       </section>
@@ -83,8 +139,8 @@
     <footer>
       <p>
         資料來源：中華郵政 路街 / 村里 / 縣市鄉鎮 中英對照檔（113/01）。
-        <a href="https://github.com/sean1093/menpai">GitHub</a> ·
-        <a href="https://www.npmjs.com/package/menpai">npm</a>
+        <a href="https://github.com/sean1093/menpai" rel="noopener noreferrer">GitHub</a> ·
+        <a href="https://www.npmjs.com/package/menpai" rel="noopener noreferrer">npm</a>
       </p>
     </footer>
 

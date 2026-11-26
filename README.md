@@ -30,7 +30,7 @@ r.segments;    // [{ key: "number", value: "No. 99", confidence: "exact" },
 
 A wrong address gets a parcel lost. This library would rather tell you "I am not sure" than pretend.
 
-**Try it in the browser:** https://sean1093.github.io/menpai/ — mobile-first, accepts `?q=<address>` as a deep link, and **works offline**: a service worker precaches the whole app on first load, so it still runs in airplane mode or on a foreign SIM with no data. It can be added to a phone's home screen.
+**Try it in the browser:** https://sean1093.github.io/menpai/ — mobile-first, accepts `#q=<address>` as a deep link (a fragment, so the address is never sent anywhere — `?q=` still works but puts the address in the URL), and **works offline**: a service worker precaches the whole app on first load, so it still runs in airplane mode or on a foreign SIM with no data. It can be added to a phone's home screen.
 
 ## Install
 

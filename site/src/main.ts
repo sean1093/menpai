@@ -26,11 +26,20 @@ const segmentsEl = $<HTMLTableSectionElement>("segments");
 const errorEl = $<HTMLElement>("error");
 const errorTextEl = $<HTMLParagraphElement>("error-text");
 const errorChoicesEl = $<HTMLDivElement>("error-choices");
+const liveEl = $<HTMLParagraphElement>("live");
+const examplesEl = $<HTMLElement>("examples");
 
 const STATUS: Record<Confidence, string> = {
   exact: "已對照中華郵政官方資料",
   inferred: "有部分名稱不在官方清單，以拼音推估，請確認畫底線的部分",
   unknown: "有無法辨識的內容，請人工確認畫底線的部分",
+};
+
+/** Per-segment labels for the confidence marks. Terse on purpose: see renderSegments. */
+const MARK: Record<Confidence, string> = {
+  exact: "官方資料",
+  inferred: "拼音推估",
+  unknown: "請人工確認",
 };
 
 const PART_LABEL: Record<keyof AddressParts, string> = {
@@ -115,6 +124,7 @@ function renderSegments(result: FormatResult): void {
     const label = document.createElement("td");
     label.textContent = PART_LABEL[segment.key];
     const value = document.createElement("td");
+    value.lang = "en";
     value.textContent = segment.value;
     const dot = document.createElement("td");
     const mark = document.createElement("span");
@@ -123,7 +133,10 @@ function renderSegments(result: FormatResult): void {
     // without a role the confidence marks are invisible to a screen reader, and
     // shape is then the only non-colour channel.
     mark.setAttribute("role", "img");
-    mark.setAttribute("aria-label", STATUS[segment.confidence]);
+    // A short label, not STATUS: that is a page-level instruction, and reusing
+    // it named up to fifteen cells "有無法辨識的內容，請人工確認畫底線的部分",
+    // which cannot be skimmed and points at underlining in another element.
+    mark.setAttribute("aria-label", MARK[segment.confidence]);
     dot.append(mark);
     tr.append(label, value, dot);
     segmentsEl.append(tr);
@@ -166,7 +179,7 @@ function showError(text: string, choices: string[] = []): void {
   errorEl.hidden = false;
 }
 
-function run(): void {
+function run(showErrors = true): void {
   const input = addressEl.value.trim();
   clearEl.hidden = input.length === 0;
   if (input.length === 0) {
@@ -179,6 +192,12 @@ function run(): void {
     country: countryEl.checked,
   });
   if (result.error) {
+    // While typing, an incomplete address is not an error worth a card.
+    if (!showErrors) {
+      resultEl.hidden = true;
+      errorEl.hidden = true;
+      return;
+    }
     if (result.error.code === "area-ambiguous") {
       const cities = result.error.candidates ?? [];
       showError(
@@ -193,8 +212,53 @@ function run(): void {
     return;
   }
 
-  statusEl.className = `status ${result.confidence}`;
-  statusEl.textContent = STATUS[result.confidence];
+  /*
+   * The status line is keyed on the *cause*, not on `confidence` alone.
+   *
+   * It used to say 「請確認畫底線的部分」 — check the underlined part — for
+   * every non-exact result. But when the only problem is text we could not
+   * place, that text never reaches the English output, so `renderEnglish` has
+   * nothing to mark and there is no underline to check. Two very different
+   * situations got the same red banner and no way to tell them apart:
+   *
+   *   …市政路100號 王小明 0912345678  → a correct address with a name attached
+   *   …忠孝東洛四段1號 (one wrong char) → house number, section and road lost
+   *
+   * The first is the common case by far — a name or phone pasted from a
+   * messaging app — and a red alarm on a right answer teaches people to
+   * distrust the tool. The second is the one that actually needs a human.
+   */
+  const doubtful = result.segments.filter((s) => s.confidence !== "exact");
+  const dropped = (result.warnings ?? []).some((w) => w.code === "unparsed-remainder");
+  /*
+   * Whether what survived is still an address — which is what actually
+   * separates the two cases. Both of these drop a remainder and have no
+   * doubtful segment:
+   *
+   *   …市政路100號 王小明 0912345678   keys: number road area city   benign
+   *   …忠孝東洛四段1號 (one wrong char) keys:        road area city   lost
+   *
+   * The house number is the tell. Without it nothing can be delivered, so a
+   * remainder that swallowed it is the serious case however tidy the English
+   * looks. My first version of this check missed that and called the second
+   * one benign; the test for it is what caught that.
+   */
+  const keys = new Set(result.segments.map((s) => s.key));
+  const deliverable = keys.has("number") && (keys.has("road") || keys.has("village"));
+  const benign = dropped && deliverable && doubtful.length === 0;
+  const level: Confidence = benign
+    ? "inferred"
+    : doubtful.length > 0 || dropped
+      ? "unknown"
+      : "exact";
+  statusEl.className = `status ${level}`;
+  statusEl.textContent = benign
+    ? "地址本身翻好了，有一段沒被翻譯（通常是姓名、電話或大樓名稱），請看下面說明"
+    : dropped && !deliverable
+      ? "有一段無法辨識，門牌號碼也沒有讀到，這個地址不完整，請人工確認"
+      : doubtful.length > 0
+        ? STATUS[result.confidence]
+        : STATUS.exact;
   renderEnglish(result);
   renderSegments(result);
 
@@ -233,13 +297,54 @@ function run(): void {
   resultEl.hidden = false;
   copyEl.textContent = "複製英文地址";
   copyEl.classList.remove("done");
+  /*
+   * One short sentence, not the whole card. The result region carries the
+   * status line, the English, a copy button, the issue list and up to fifteen
+   * table rows; announcing all of it on every keystroke pause was the other
+   * half of the old behaviour. The English is marked `lang="en"` so it is read
+   * with an English voice rather than as phoneme soup.
+   */
+  announce(
+    level === "exact"
+      ? `已轉換：${result.english}`
+      : `已轉換，但有需要確認的地方：${result.english}`,
+  );
 }
+
+/** Replaces the live region's text, re-marking the English part of it. */
+function announce(text: string): void {
+  liveEl.replaceChildren();
+  const at = text.indexOf("：");
+  if (at === -1) {
+    liveEl.textContent = text;
+    return;
+  }
+  liveEl.append(text.slice(0, at + 1));
+  const english = document.createElement("span");
+  english.lang = "en";
+  english.textContent = text.slice(at + 1);
+  liveEl.append(english);
+}
+
+/*
+ * The examples sit directly under the textarea, so on a phone one mis-tap used
+ * to replace a pasted address with no confirmation and no undo — and getting it
+ * back means switching apps and copying again. They hide once there is
+ * something to lose, mirroring the clear button's own logic.
+ */
+const syncExamples = (): void => {
+  examplesEl.hidden = addressEl.value.trim().length > 0;
+};
 
 let timer: number | undefined;
 addressEl.addEventListener("input", () => {
   clearEl.hidden = addressEl.value.length === 0;
+  syncExamples();
   clearTimeout(timer);
-  timer = window.setTimeout(run, 200);
+  // `false`: typing is not a request for an error message. An assertive card
+  // telling someone "找不到縣市" while they are still typing the city is noise,
+  // and for a screen-reader user it interrupted their own typing echo.
+  timer = window.setTimeout(() => run(false), 200);
 });
 
 addressEl.addEventListener("keydown", (event) => {
@@ -249,16 +354,31 @@ addressEl.addEventListener("keydown", (event) => {
   }
 });
 
+/** Honours the reader's motion preference; a full-page animated scroll is the one vestibular trigger here. */
+const reveal = (target: HTMLElement): void => {
+  const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  target.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+};
+
 goEl.addEventListener("click", () => {
   clearTimeout(timer);
   run();
-  addressEl.blur();
   const target = resultEl.hidden ? errorEl : resultEl;
-  if (!target.hidden) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (target.hidden) return;
+  /*
+   * Focus the result rather than `addressEl.blur()`. The blur existed to
+   * dismiss the mobile keyboard, which moving focus to another element also
+   * does — but blur left focus on <body>, so there was no visible ring
+   * anywhere, a keyboard user's next Tab restarted at the masthead, and a
+   * screen-reader user had no cursor to read from.
+   */
+  target.focus();
+  reveal(target);
 });
 
 clearEl.addEventListener("click", () => {
   addressEl.value = "";
+  syncExamples();
   run();
   addressEl.focus();
 });
@@ -266,14 +386,17 @@ clearEl.addEventListener("click", () => {
 for (const chip of document.querySelectorAll<HTMLButtonElement>(".chip")) {
   chip.addEventListener("click", () => {
     addressEl.value = chip.dataset.example ?? "";
+    syncExamples();
     run();
   });
 }
 
+// Wrapped, not passed directly: `run` takes a parameter, so a bare reference
+// would hand it the Event object as `showErrors`.
 for (const input of document.querySelectorAll<HTMLInputElement>('input[name="romanization"]')) {
-  input.addEventListener("change", run);
+  input.addEventListener("change", () => run());
 }
-countryEl.addEventListener("change", run);
+countryEl.addEventListener("change", () => run());
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -294,12 +417,30 @@ async function copyText(text: string): Promise<boolean> {
 
 copyEl.addEventListener("click", async () => {
   const ok = await copyText(englishEl.textContent ?? "");
-  copyEl.textContent = ok ? "已複製 ✓" : "無法複製，請長按文字選取";
-  copyEl.classList.toggle("done", ok);
-  setTimeout(() => {
-    copyEl.textContent = "複製英文地址";
-    copyEl.classList.remove("done");
-  }, 2000);
+  /*
+   * Two changes from the obvious version.
+   *
+   * The button's own label stays put. Mutating the label of the control you
+   * just pressed changes its accessible name, which screen readers announce
+   * inconsistently and voice-control users navigate by — "點 複製英文地址"
+   * stopped working for two seconds because the name they could see no longer
+   * existed. The confirmation goes to the live region instead.
+   *
+   * And it only turns green on a result we actually stand behind. The
+   * clipboard gets flat text with the underlines gone, so the copy is the
+   * moment the uncertainty is lost — and a green tick was the last thing the
+   * reader saw before pasting a guessed spelling into a visa form.
+   */
+  const sure = statusEl.classList.contains("exact");
+  copyEl.classList.toggle("done", ok && sure);
+  announce(
+    ok
+      ? sure
+        ? "已複製英文地址"
+        : "已複製英文地址，但其中有推估或無法確認的部分，請再核對"
+      : "無法複製，請長按或選取英文地址再複製",
+  );
+  setTimeout(() => copyEl.classList.remove("done"), 2000);
 });
 
 /*
@@ -315,10 +456,27 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
   });
 }
 
-// Deep link: ?q=<address>&r=hanyu|tongyong|wade-giles — lets other sites hand an address over.
-const params = new URLSearchParams(location.search);
-const q = params.get("q");
-const r = params.get("r");
+/*
+ * Deep link: `#q=<address>&r=hanyu|tongyong|wade-giles`, with `?q=` still
+ * accepted so existing links keep working.
+ *
+ * The fragment is the preferred form because a fragment is never sent in an
+ * HTTP request. With `?q=`, a cold load — a freshly clicked shared link, or any
+ * visit before the service worker is installed — sends the address to the host
+ * and its CDN, where it lands in access logs this project does not control.
+ * The page tells the reader, in Chinese, that the address is never sent to any
+ * server; with a query string that sentence was false exactly once per link,
+ * on the visit that matters.
+ *
+ * Either form is then stripped from the URL, so the address stops riding along
+ * in the address bar, in the history entry, in whatever the reader bookmarks
+ * next, and in the omnibox suggestions that surface it on a shared machine.
+ */
+const deepLink = new URLSearchParams(
+  location.hash.startsWith("#") ? location.hash.slice(1) : location.search,
+);
+const q = deepLink.get("q");
+const r = deepLink.get("r");
 if (r === "hanyu" || r === "tongyong" || r === "wade-giles") {
   const radio = document.querySelector<HTMLInputElement>(
     `input[name="romanization"][value="${r}"]`,
@@ -327,5 +485,9 @@ if (r === "hanyu" || r === "tongyong" || r === "wade-giles") {
 }
 if (q) {
   addressEl.value = q;
+  syncExamples();
+  if (location.search || location.hash) {
+    history.replaceState(null, "", location.pathname);
+  }
   run();
 }
